@@ -1383,11 +1383,33 @@
   }
 
   function updateBalanceFromResponse(json){
-    if (!json || json.balance_response == null) return;
-    var balance = extractBalance(json.balance_response);
-    if (balance === null) return;
-    var n = Number(balance);
-    el.balanceValue.textContent = isNaN(n) ? String(balance) : n.toLocaleString();
+    if (!json) return;
+
+    var balance = json.balance;
+
+    if (
+      balance === null ||
+      balance === undefined ||
+      balance === ""
+    ){
+      balance = extractBalance(json.balance_response);
+    }
+
+    if (
+      balance === null ||
+      balance === undefined ||
+      balance === ""
+    ){
+      return;
+    }
+
+    var n = Number(
+      String(balance).replace(/,/g, "").trim()
+    );
+
+    el.balanceValue.textContent =
+      isNaN(n) ? String(balance) : n.toLocaleString();
+
     el.balanceTile.classList.add('show');
   }
 
