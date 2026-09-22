@@ -1,3 +1,611 @@
+<title>LEAPVE Send SMS</title>
+<meta name="color-scheme" content="light dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ Design tokens ============ */
+  :root{
+    --bg:#F3F5FB;
+    --surface:#FFFFFF;
+    --surface-2:#F7F8FC;
+    --surface-3:#EDF0F8;
+    --border:#E1E5F0;
+    --border-strong:#CBD1E3;
+    --ink:#10132A;
+    --ink-muted:#5B6079;
+    --ink-faint:#9296AC;
+    --accent:#3D5CFF;
+    --accent-ink:#2A3FD1;
+    --accent-soft:#EBEFFF;
+    --accent-contrast:#FFFFFF;
+    --success:#0F9D62;
+    --success-soft:#E5F7EE;
+    --danger:#E5484D;
+    --danger-soft:#FDEBEC;
+    --warning:#B76E00;
+    --warning-soft:#FFF4E0;
+    --shadow-sm:0 1px 2px rgba(16,19,42,.06);
+    --shadow-md:0 8px 24px -8px rgba(16,19,42,.16);
+    --shadow-lg:0 24px 60px -20px rgba(16,19,42,.28);
+    --radius-lg:18px;
+    --radius-md:12px;
+    --radius-sm:8px;
+    --font-display:'Manrope',ui-sans-serif,system-ui,sans-serif;
+    --font-body:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0A0C16;
+      --surface:#12151F;
+      --surface-2:#171A27;
+      --surface-3:#1E2230;
+      --border:#252A3B;
+      --border-strong:#333A50;
+      --ink:#EDEFF9;
+      --ink-muted:#9CA1BC;
+      --ink-faint:#6B7091;
+      --accent:#6B87FF;
+      --accent-ink:#AAB8FF;
+      --accent-soft:#1B2242;
+      --accent-contrast:#0A0C16;
+      --success:#3DD68C;
+      --success-soft:#0F2A20;
+      --danger:#FF6B6F;
+      --danger-soft:#341418;
+      --warning:#F5A623;
+      --warning-soft:#332008;
+      --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+      --shadow-md:0 8px 24px -8px rgba(0,0,0,.5);
+      --shadow-lg:0 24px 60px -20px rgba(0,0,0,.65);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0A0C16;
+    --surface:#12151F;
+    --surface-2:#171A27;
+    --surface-3:#1E2230;
+    --border:#252A3B;
+    --border-strong:#333A50;
+    --ink:#EDEFF9;
+    --ink-muted:#9CA1BC;
+    --ink-faint:#6B7091;
+    --accent:#6B87FF;
+    --accent-ink:#AAB8FF;
+    --accent-soft:#1B2242;
+    --accent-contrast:#0A0C16;
+    --success:#3DD68C;
+    --success-soft:#0F2A20;
+    --danger:#FF6B6F;
+    --danger-soft:#341418;
+    --warning:#F5A623;
+    --warning-soft:#332008;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 8px 24px -8px rgba(0,0,0,.5);
+    --shadow-lg:0 24px 60px -20px rgba(0,0,0,.65);
+    color-scheme:dark;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    padding-inline:20px;
+  }
+  h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+  p{margin:0}
+  button{font-family:inherit}
+  input,textarea,select,button{font:inherit;color:inherit}
+  ::selection{background:var(--accent);color:var(--accent-contrast)}
+  .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+
+  /* ============ Balance checker ============ */
+  .balance-checker{
+    display:flex;align-items:center;gap:10px;padding:8px 10px;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:var(--shadow-sm);
+  }
+  .balance-checker-info{display:flex;flex-direction:column;gap:1px;min-width:92px}
+  .balance-checker-label{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase}
+  .balance-checker-value{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--success);line-height:1.2}
+  .balance-checker-btn{
+    border:1px solid var(--border);background:var(--surface-2);color:var(--ink);
+    border-radius:8px;padding:7px 10px;font-size:11.5px;font-weight:700;cursor:pointer;
+    transition:background .15s,border-color .15s,opacity .15s;
+  }
+  .balance-checker-btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+  .balance-checker-btn:disabled{opacity:.55;cursor:not-allowed}
+  .balance-checker-status{font-size:10px;color:var(--ink-faint);margin-top:1px}
+  .balance-checker-status.error{color:var(--danger)}
+  .balance-checker-status.success{color:var(--success)}
+  @media (max-width:600px){
+    .balance-checker{width:100%;justify-content:space-between}
+  }
+
+  /* ============ Shell ============ */
+  .app{max-width:1180px;margin:0 auto;padding-block:28px 80px}
+
+  .topbar{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+    padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{
+    width:40px;height:40px;border-radius:11px;flex:none;
+    background:linear-gradient(150deg,var(--accent),var(--accent-ink));
+    display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);
+  }
+  .brand-mark svg{width:20px;height:20px}
+  .brand-text{display:flex;flex-direction:column;gap:1px}
+  .brand-name{font-family:var(--font-display);font-weight:800;font-size:13.5px;letter-spacing:.09em;color:var(--ink)}
+  .brand-sub{font-size:11.5px;color:var(--ink-faint);letter-spacing:.03em}
+  .page-heading{margin-top:14px}
+  .page-heading h1{font-size:26px;font-weight:800}
+  .page-heading p{margin-top:5px;color:var(--ink-muted);font-size:14.5px;max-width:46ch}
+  .topbar-meta{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .env-pill{
+    display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:100px;
+    background:var(--surface-2);border:1px solid var(--border);font-size:12px;color:var(--ink-muted);
+    font-weight:500;
+  }
+  .env-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);box-shadow:0 0 0 3px var(--surface-3)}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:22px;align-items:start}
+  .col-main{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .col-side{display:flex;flex-direction:column;gap:18px;position:sticky;top:20px}
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    padding:22px 24px;box-shadow:var(--shadow-sm);
+  }
+  .card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+  .card-title-group{display:flex;align-items:center;gap:10px}
+  .step-badge{
+    width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;
+  }
+  .card-title{font-size:15.5px;font-weight:700;font-family:var(--font-display)}
+  .card-desc{font-size:12.5px;color:var(--ink-faint);margin-top:2px}
+  .card-tag{
+    font-size:11px;font-weight:600;color:var(--ink-faint);background:var(--surface-2);
+    border:1px solid var(--border);padding:4px 9px;border-radius:100px;white-space:nowrap;
+  }
+
+  label.field-label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-muted);margin-bottom:7px}
+
+  /* ============ Token input ============ */
+  .token-row{position:relative;display:flex;align-items:center}
+  .input, textarea.input{
+    width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);
+    padding:11px 13px;font-size:14px;color:var(--ink);transition:border-color .15s,box-shadow .15s,background .15s;
+  }
+  .input::placeholder,textarea.input::placeholder{color:var(--ink-faint)}
+  .input:focus,textarea.input:focus{
+    outline:none;border-color:var(--accent);background:var(--surface);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .input.mono{letter-spacing:.02em}
+  .token-row .input{padding-right:44px}
+  .token-toggle{
+    position:absolute;right:6px;width:32px;height:32px;border-radius:8px;border:none;background:transparent;
+    color:var(--ink-faint);display:flex;align-items:center;justify-content:center;cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .token-toggle:hover{background:var(--surface-3);color:var(--ink-muted)}
+  .token-toggle svg{width:17px;height:17px}
+  .field-hint{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--ink-faint)}
+  .field-hint svg{width:13px;height:13px;flex:none}
+  .field-error{display:none;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;color:var(--danger);font-weight:500}
+  .field-error svg{width:14px;height:14px;flex:none}
+  .field.has-error .input{border-color:var(--danger) !important;background:var(--danger-soft) !important}
+  .field.has-error .field-error{display:flex}
+  .field.has-error .field-hint{display:none}
+
+  /* ============ Tabs ============ */
+  .tabs{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+  .tab-btn{
+    border:none;background:transparent;padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;
+    color:var(--ink-faint);cursor:pointer;transition:background .15s,color .15s;
+  }
+  .tab-btn.active{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  textarea.input{resize:vertical;min-height:112px;line-height:1.5;font-family:var(--font-mono);font-size:13.5px}
+  #messageInput{font-family:var(--font-body);font-size:14px;min-height:150px}
+
+  .recipients-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:8px}
+  .count-chip{
+    display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:5px 11px;
+    border-radius:100px;background:var(--success-soft);color:var(--success);
+  }
+  .count-chip.zero{background:var(--surface-2);color:var(--ink-faint)}
+  .count-chip .n{font-family:var(--font-mono)}
+
+  /* ============ Dropzone ============ */
+  .dropzone{
+    border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);padding:30px 20px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;
+    background:var(--surface-2);cursor:pointer;transition:border-color .15s,background .15s,transform .1s;
+  }
+  .dropzone:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .dropzone.drag{border-color:var(--accent);background:var(--accent-soft);transform:scale(.995)}
+  .dropzone-icon{
+    width:44px;height:44px;border-radius:12px;background:var(--surface);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;color:var(--accent);box-shadow:var(--shadow-sm);
+  }
+  .dropzone-icon svg{width:21px;height:21px}
+  .dropzone-title{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .dropzone-title button{color:var(--accent);background:none;border:none;padding:0;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+  .dropzone-sub{font-size:11.5px;color:var(--ink-faint)}
+
+  .file-chip{
+    display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:var(--radius-sm);
+    background:var(--surface-2);border:1px solid var(--border);
+  }
+  .file-chip-icon{
+    width:34px;height:34px;border-radius:9px;background:var(--success-soft);color:var(--success);
+    display:flex;align-items:center;justify-content:center;flex:none;
+  }
+  .file-chip-icon svg{width:16px;height:16px}
+  .file-chip-info{min-width:0;flex:1}
+  .file-chip-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .file-chip-meta{font-size:11.5px;color:var(--ink-faint);margin-top:1px}
+  .file-chip-remove{
+    width:28px;height:28px;border-radius:8px;border:none;background:transparent;color:var(--ink-faint);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  }
+  .file-chip-remove:hover{background:var(--danger-soft);color:var(--danger)}
+  .file-chip-remove svg{width:15px;height:15px}
+
+  .column-picker{display:flex;align-items:center;gap:9px;margin-top:12px;padding:10px 12px;background:var(--warning-soft);border:1px solid transparent;border-radius:var(--radius-sm)}
+  .column-picker svg{width:15px;height:15px;color:var(--warning);flex:none}
+  .column-picker span{font-size:12.5px;color:var(--ink);font-weight:500}
+  .column-picker select{margin-left:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:7px;padding:5px 8px;font-size:12.5px;font-weight:600}
+
+  /* ============ Preview table ============ */
+  .preview-wrap{margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden}
+  .preview-scroll{max-height:220px;overflow-y:auto}
+  table.preview-table{width:100%;border-collapse:collapse;font-size:13px}
+  .preview-table thead th{
+    position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:11px;font-weight:700;
+    color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase;padding:9px 13px;border-bottom:1px solid var(--border);
+  }
+  .preview-table td{padding:8px 13px;border-bottom:1px solid var(--border);color:var(--ink)}
+  .preview-table tbody tr:last-child td{border-bottom:none}
+  .preview-table td.idx{color:var(--ink-faint);font-family:var(--font-mono);width:32px}
+  .preview-table td.num{font-family:var(--font-mono)}
+  .status-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:100px}
+  .status-pill.valid{background:var(--success-soft);color:var(--success)}
+  .status-pill.invalid{background:var(--danger-soft);color:var(--danger)}
+  .status-pill.dup{background:var(--warning-soft);color:var(--warning)}
+  .status-pill svg{width:10px;height:10px}
+  .preview-more{padding:9px 13px;font-size:12px;color:var(--ink-faint);background:var(--surface-2);border-top:1px solid var(--border)}
+
+  /* ============ Message composer ============ */
+  .composer-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .composer-clear{
+    display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:var(--ink-faint);
+    font-size:12px;font-weight:600;cursor:pointer;padding:4px 6px;border-radius:6px;
+  }
+  .composer-clear:hover{color:var(--danger);background:var(--danger-soft)}
+  .composer-clear svg{width:13px;height:13px}
+  .composer-foot{display:flex;align-items:center;flex-wrap:wrap;gap:16px;margin-top:11px}
+  .stat-inline{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-faint)}
+  .stat-inline b{color:var(--ink);font-family:var(--font-mono);font-weight:600}
+  .stat-sep{width:3px;height:3px;border-radius:50%;background:var(--border-strong)}
+  .encoding-badge{margin-left:auto;font-size:11px;font-weight:700;letter-spacing:.03em;padding:3px 9px;border-radius:100px;background:var(--surface-2);color:var(--ink-muted);border:1px solid var(--border)}
+
+  /* ============ Config card (read only) ============ */
+  .config-list{display:flex;flex-direction:column;gap:0}
+  .config-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+  .config-row:last-child{border-bottom:none;padding-bottom:0}
+  .config-row:first-child{padding-top:0}
+  .config-row.stacked{flex-direction:column;align-items:flex-start;gap:7px}
+  .config-val-url{width:100%;word-break:break-all;white-space:normal;line-height:1.4;font-size:12px}
+  .config-key{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-muted);font-weight:500}
+  .config-key svg{width:14px;height:14px;color:var(--ink-faint)}
+  .config-val{font-size:12.5px;font-weight:600;color:var(--ink);font-family:var(--font-mono)}
+  .locked-note{
+    display:flex;align-items:center;gap:7px;margin-top:14px;padding:9px 11px;background:var(--surface-2);
+    border-radius:var(--radius-sm);font-size:11.5px;color:var(--ink-faint);
+  }
+  .locked-note svg{width:13px;height:13px;flex:none;color:var(--ink-faint)}
+
+  /* ============ Summary card ============ */
+  .summary-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .stat-tile{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 13px}
+  .stat-tile .label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase}
+  .stat-tile .value{font-family:var(--font-mono);font-size:21px;font-weight:600;color:var(--ink);margin-top:4px;line-height:1}
+  .stat-tile .value.accent{color:var(--accent)}
+  .balance-tile{display:none;margin-bottom:16px;background:var(--success-soft);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 14px;align-items:center;justify-content:space-between;gap:12px}
+  .balance-tile.show{display:flex}
+  .balance-meta{display:flex;flex-direction:column;gap:2px}
+  .balance-label{font-size:10.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.05em;text-transform:uppercase}
+  .balance-sub{font-size:11px;color:var(--ink-faint)}
+  .balance-value{font-family:var(--font-mono);font-size:21px;font-weight:700;color:var(--success);line-height:1}
+
+  .msg-preview{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:13px 14px;
+    margin-bottom:16px;
+  }
+  .msg-preview-head{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .msg-preview-head svg{width:13px;height:13px;color:var(--ink-faint)}
+  .msg-preview-head span{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:.04em;text-transform:uppercase}
+  .bubble{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:10px 13px;
+    font-size:13.5px;line-height:1.5;color:var(--ink);max-height:120px;overflow-y:auto;word-wrap:break-word;
+  }
+  .bubble.empty{color:var(--ink-faint);font-style:normal}
+  .bubble-from{font-size:10.5px;color:var(--ink-faint);margin-top:7px;font-family:var(--font-mono)}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:11px;
+    font-weight:700;font-size:14.5px;cursor:pointer;padding:13px 18px;width:100%;transition:transform .1s,box-shadow .15s,background .15s,opacity .15s;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent);color:var(--accent-contrast);box-shadow:0 10px 24px -10px color-mix(in srgb, var(--accent) 65%, transparent)}
+  .btn-primary:hover{background:var(--accent-ink)}
+  .btn-primary:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .btn svg{width:17px;height:17px}
+  .btn .spinner{display:none}
+  .btn.loading .spinner{display:inline-flex}
+  .btn.loading .btn-label,.btn.loading .btn-icon{display:none}
+  .spinner{width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite}
+  :root[data-theme="dark"] .spinner,@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .spinner{border-top-color:var(--accent-contrast)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .send-hint{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--ink-faint)}
+  .send-hint svg{width:12px;height:12px}
+
+  .demo-toggle-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px;
+  }
+  .demo-toggle-label{display:flex;flex-direction:column;gap:1px}
+  .demo-toggle-label span.t{font-size:12.5px;font-weight:600;color:var(--ink)}
+  .demo-toggle-label span.d{font-size:11px;color:var(--ink-faint)}
+  .switch{position:relative;width:38px;height:22px;flex:none}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+  .switch-track{
+    position:absolute;inset:0;background:var(--border-strong);border-radius:100px;transition:background .15s;
+  }
+  .switch-track::after{
+    content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--surface);border-radius:50%;
+    box-shadow:var(--shadow-sm);transition:transform .15s;
+  }
+  .switch input:checked + .switch-track{background:var(--warning)}
+  .switch input:checked + .switch-track::after{transform:translateX(16px)}
+  .switch input:focus-visible + .switch-track{box-shadow:0 0 0 3px var(--accent-soft)}
+  .demo-badge{
+    display:none;align-items:center;gap:5px;font-size:10.5px;font-weight:700;letter-spacing:.03em;
+    padding:3px 8px;border-radius:100px;background:var(--warning-soft);color:var(--warning);margin-left:8px;
+  }
+  .demo-badge.on{display:inline-flex}
+
+  .result-banner{display:none;align-items:flex-start;gap:10px;padding:12px 13px;border-radius:var(--radius-md);margin-top:14px;font-size:12.5px;line-height:1.5}
+  .result-banner.show{display:flex}
+  .result-banner.success{background:var(--success-soft);color:var(--success)}
+  .result-banner.error{background:var(--danger-soft);color:var(--danger)}
+  .result-banner.warning{background:var(--warning-soft);color:var(--warning)}
+  .result-banner svg{width:16px;height:16px;flex:none;margin-top:1px}
+  .result-banner b{display:block;color:inherit;font-size:13px;margin-bottom:2px}
+
+  /* ============ Modal ============ */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(8,10,20,.55);backdrop-filter:blur(2px);display:flex;
+    align-items:center;justify-content:center;padding:20px;z-index:80;opacity:0;pointer-events:none;transition:opacity .15s;
+  }
+  .modal-overlay.open{opacity:1;pointer-events:auto}
+  .modal{
+    background:var(--surface);border:1px solid var(--border);border-radius:20px;max-width:420px;width:100%;
+    box-shadow:var(--shadow-lg);padding:26px;transform:translateY(10px) scale(.98);transition:transform .18s;
+  }
+  .modal-overlay.open .modal{transform:translateY(0) scale(1)}
+  .modal-icon{width:44px;height:44px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+  .modal-icon svg{width:22px;height:22px}
+  .modal h2{font-size:18px;margin-bottom:5px}
+  .modal p.modal-sub{color:var(--ink-muted);font-size:13px;margin-bottom:18px}
+  .modal-summary{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:5px 14px;margin-bottom:20px}
+  .modal-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .modal-row:last-child{border-bottom:none}
+  .modal-row .k{color:var(--ink-muted)}
+  .modal-row .v{font-weight:600;font-family:var(--font-mono)}
+  .modal-actions{display:flex;gap:10px}
+  .btn-ghost{
+    background:var(--surface-2);color:var(--ink);border:1px solid var(--border);border-radius:11px;
+    font-weight:600;font-size:13.5px;padding:11px 16px;cursor:pointer;flex:1;transition:background .15s;
+  }
+  .btn-ghost:hover{background:var(--surface-3)}
+  .modal-actions .btn-primary{flex:1.4;width:auto}
+
+  /* ============ Toasts ============ */
+  #toastRegion{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:100;width:min(360px,calc(100vw - 36px))}
+  .toast{
+    display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--border);
+    border-radius:13px;padding:13px 14px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden;
+    animation:toast-in .22s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes toast-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .toast.leaving{animation:toast-out .18s ease forwards}
+  @keyframes toast-out{to{opacity:0;transform:translateY(6px) scale(.97)}}
+  .toast-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none}
+  .toast-icon svg{width:15px;height:15px}
+  .toast.success .toast-icon{background:var(--success-soft);color:var(--success)}
+  .toast.error .toast-icon{background:var(--danger-soft);color:var(--danger)}
+  .toast.warning .toast-icon{background:var(--warning-soft);color:var(--warning)}
+  .toast.info .toast-icon{background:var(--accent-soft);color:var(--accent-ink)}
+  .toast-body{flex:1;min-width:0}
+  .toast-title{font-size:13px;font-weight:700;color:var(--ink)}
+  .toast-msg{font-size:12px;color:var(--ink-muted);margin-top:2px;line-height:1.4}
+  .toast-close{background:none;border:none;color:var(--ink-faint);cursor:pointer;padding:2px;flex:none}
+  .toast-close svg{width:13px;height:13px}
+  .toast-bar{position:absolute;left:0;bottom:0;height:2px;background:var(--accent);animation:toast-bar 4.2s linear forwards}
+  .toast.success .toast-bar{background:var(--success)}
+  .toast.error .toast-bar{background:var(--danger)}
+  .toast.warning .toast-bar{background:var(--warning)}
+  @keyframes toast-bar{from{width:100%}to{width:0}}
+
+  .footnote{text-align:center;font-size:11.5px;color:var(--ink-faint);margin-top:26px}
+
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr}
+    .col-side{position:static}
+  }
+  @media (max-width:600px){
+    body{padding-inline:14px}
+    .card{padding:18px}
+    .topbar{flex-direction:column}
+    .topbar-meta{align-items:flex-start}
+    .summary-stats{grid-template-columns:1fr 1fr}
+    .page-heading h1{font-size:22px}
+  }
+</style>
+
+<div class="app">
+
+  <header class="topbar">
+    <div>
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v10c0 .83-.67 1.5-1.5 1.5H9l-4.2 3.3c-.5.4-1.3.03-1.3-.6V5.5Z" fill="white" fill-opacity=".95"/><circle cx="8.5" cy="10.5" r="1.15" fill="#3D5CFF"/><circle cx="12" cy="10.5" r="1.15" fill="#3D5CFF"/><circle cx="15.5" cy="10.5" r="1.15" fill="#3D5CFF"/></svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">LEAPVE SMS</span>
+          <span class="brand-sub">Messaging console</span>
+        </div>
+      </div>
+      <div class="page-heading">
+        <h1>Send SMS</h1>
+        <p>Send SMS messages to your customers quickly and securely.</p>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <div class="balance-checker">
+        <div class="balance-checker-info">
+          <span class="balance-checker-label">SMS Balance</span>
+          <span class="balance-checker-value" id="topBalanceValue">—</span>
+          <span class="balance-checker-status" id="topBalanceStatus">Enter token, then check</span>
+        </div>
+        <button type="button" class="balance-checker-btn" id="checkBalanceBtn">Check balance</button>
+      </div>
+      <span class="env-pill"><span class="env-dot"></span> Endpoint: <span id="envEndpointHost">sms.leapve.com</span></span>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============ MAIN COLUMN ============ -->
+    <section class="col-main">
+
+      <!-- API TOKEN -->
+      <div class="card" id="card-token">
+        <div class="card-head">
+          <div class="card-title-group">
+            <div class="step-badge">1</div>
+            <div>
+              <div class="card-title">API Token</div>
+              <div class="card-desc">Your personal LEAPVE authentication token</div>
+            </div>
+          </div>
+          <span class="card-tag">Required</span>
+        </div>
+
+        <div class="field" id="tokenField">
+          <label class="field-label" for="apiToken">API Token</label>
+          <div class="token-row">
+            <input class="input mono" type="password" id="apiToken" placeholder="Enter your API token" autocomplete="off" spellcheck="false">
+            <button type="button" class="token-toggle" id="tokenToggle" aria-label="Show token">
+              <svg id="eyeOpen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg id="eyeClosed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M3 3l18 18"/><path d="M10.6 5.2A10.9 10.9 0 0 1 12 5c7 0 10.5 7 10.5 7a17.6 17.6 0 0 1-3.2 4.3M6.6 6.6C3.5 8.5 1.5 12 1.5 12S5 19 12 19c1.4 0 2.6-.25 3.7-.66"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+            </button>
+          </div>
+          <div class="field-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            Hidden by default. Only sent securely to your backend, never logged or displayed in full.
+          </div>
+          <div class="field-error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> API token is required to send messages.</div>
+        </div>
+      </div>
+
+      <!-- RECIPIENTS -->
+      <div class="card" id="card-recipients">
+        <div class="card-head">
+          <div class="card-title-group">
+            <div class="step-badge">2</div>
+            <div>
+              <div class="card-title">Recipients</div>
+              <div class="card-desc">Add numbers manually or upload a CSV file</div>
+            </div>
+          </div>
+          <div class="tabs" role="tablist">
+            <button class="tab-btn active" id="tabManualBtn" role="tab" aria-selected="true">Enter Numbers</button>
+            <button class="tab-btn" id="tabCsvBtn" role="tab" aria-selected="false">Upload CSV</button>
+          </div>
+        </div>
+
+        <div class="tab-panel active" id="tabManualPanel">
+          <label class="field-label" for="manualNumbers">Phone numbers</label>
+          <textarea class="input mono" id="manualNumbers" placeholder="201023017409,201112345678,201098765432"></textarea>
+          <div class="field-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            Separate multiple phone numbers with commas.
+          </div>
+        </div>
+
+        <div class="tab-panel" id="tabCsvPanel">
+          <div id="dropzoneWrap">
+            <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload CSV file">
+              <div class="dropzone-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M12 4l-4 4M12 4l4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+              </div>
+              <div class="dropzone-title">Drag &amp; drop your CSV file here or <button type="button" id="browseBtn">browse</button></div>
+              <div class="dropzone-sub">.csv up to 5&nbsp;MB · one phone number per row</div>
+            </div>
+            <input type="file" id="csvInput" accept=".csv,text/csv" hidden>
+          </div>
+
+          <div id="fileChip" style="display:none;margin-top:2px">
+            <div class="file-chip">
+              <div class="file-chip-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+              </div>
+              <div class="file-chip-info">
+                <div class="file-chip-name" id="fileChipName">recipients.csv</div>
+                <div class="file-chip-meta" id="fileChipMeta">—</div>
+              </div>
+              <button type="button" class="file-chip-remove" id="fileChipRemove" aria-label="Remove file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="column-picker" id="columnPicker" style="display:none">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2Zm0 5.5 6.53 11.3H5.47L12 7.5ZM11 10v4h2v-4h-2Zm0 5.5v1.8h2v-1.8h-2Z"/></svg>
+            <span>Multiple columns found — which one has phone numbers?</span>
+            <select id="columnSelect"></select>
+          </div>
+
+          <div id="csvError" class="field-error" style="margin-top:12px"></div>
+        </div>
+
+        <div id="recipientPreviewWrap" class="preview-wrap" style="display:none">
+          <div class="preview-scroll">
+            <table class="preview-table">
+              <thead><tr><th>#</th><th>Phone number</th><th>Status</th></tr></thead>
+              <tbody id="previewTbody"></tbody>
+            </table>
+          </div>
+          <div class="preview-more" id="previewMore" style="display:none"></div>
+        </div>
+
         <div class="recipients-foot">
           <span class="count-chip zero" id="recipientCountChip">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -158,3 +766,937 @@
     <h2>Confirm send</h2>
     <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages to sms.leapve.com.</p>
     <div class="modal-summary">
+      <div class="modal-row"><span class="k">Recipients</span><span class="v" id="confRecipients">0</span></div>
+      <div class="modal-row"><span class="k">Sender</span><span class="v">My Order</span></div>
+      <div class="modal-row"><span class="k">Message type</span><span class="v">Plain Text</span></div>
+      <div class="modal-row"><span class="k">Est. SMS segments</span><span class="v" id="confSegments">0</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalConfirm">
+        <span class="spinner"></span>
+        <span class="btn-icon">Confirm &amp; send</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toastRegion" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Fixed configuration (not user-editable) ================= */
+  var FIXED = { apiBase: "sms.leapve", sender: "My Order", type: "plain" };
+  var SEND_ENDPOINT = "https://sms.leapve.com/api/http/sms/send";
+
+  /* ================= Elements ================= */
+  var el = {
+    tokenField: document.getElementById('tokenField'),
+    apiToken: document.getElementById('apiToken'),
+    tokenToggle: document.getElementById('tokenToggle'),
+    eyeOpen: document.getElementById('eyeOpen'),
+    eyeClosed: document.getElementById('eyeClosed'),
+
+    tabManualBtn: document.getElementById('tabManualBtn'),
+    tabCsvBtn: document.getElementById('tabCsvBtn'),
+    tabManualPanel: document.getElementById('tabManualPanel'),
+    tabCsvPanel: document.getElementById('tabCsvPanel'),
+    manualNumbers: document.getElementById('manualNumbers'),
+
+    dropzone: document.getElementById('dropzone'),
+    browseBtn: document.getElementById('browseBtn'),
+    csvInput: document.getElementById('csvInput'),
+    fileChip: document.getElementById('fileChip'),
+    fileChipName: document.getElementById('fileChipName'),
+    fileChipMeta: document.getElementById('fileChipMeta'),
+    fileChipRemove: document.getElementById('fileChipRemove'),
+    columnPicker: document.getElementById('columnPicker'),
+    columnSelect: document.getElementById('columnSelect'),
+    csvError: document.getElementById('csvError'),
+    dropzoneWrap: document.getElementById('dropzoneWrap'),
+
+    previewWrap: document.getElementById('recipientPreviewWrap'),
+    previewTbody: document.getElementById('previewTbody'),
+    previewMore: document.getElementById('previewMore'),
+
+    recipientCountChip: document.getElementById('recipientCountChip'),
+    recipientCountText: document.getElementById('recipientCountText'),
+    invalidHint: document.getElementById('invalidHint'),
+
+    messageInput: document.getElementById('messageInput'),
+    messageError: document.getElementById('messageError'),
+    clearMessageBtn: document.getElementById('clearMessageBtn'),
+    charCount: document.getElementById('charCount'),
+    charRemaining: document.getElementById('charRemaining'),
+    segmentCount: document.getElementById('segmentCount'),
+    segmentLabel: document.getElementById('segmentLabel'),
+    encodingBadge: document.getElementById('encodingBadge'),
+
+    statRecipients: document.getElementById('statRecipients'),
+    statSegments: document.getElementById('statSegments'),
+    balanceTile: document.getElementById('balanceTile'),
+    balanceValue: document.getElementById('balanceValue'),
+    bubbleText: document.getElementById('bubbleText'),
+
+    sendBtn: document.getElementById('sendBtn'),
+    resultBanner: document.getElementById('resultBanner'),
+    demoToggle: document.getElementById('demoToggle'),
+    demoBadge: document.getElementById('demoBadge'),
+    configApiEndpoint: document.getElementById('configApiEndpoint'),
+    envEndpointHost: document.getElementById('envEndpointHost'),
+    checkBalanceBtn: document.getElementById('checkBalanceBtn'),
+    topBalanceValue: document.getElementById('topBalanceValue'),
+    topBalanceStatus: document.getElementById('topBalanceStatus'),
+
+    confirmOverlay: document.getElementById('confirmOverlay'),
+    confRecipients: document.getElementById('confRecipients'),
+    confSegments: document.getElementById('confSegments'),
+    modalSub: document.getElementById('modalSub'),
+    modalCancel: document.getElementById('modalCancel'),
+    modalConfirm: document.getElementById('modalConfirm'),
+
+    toastRegion: document.getElementById('toastRegion')
+  };
+
+  /* ================= State ================= */
+  var state = {
+    mode: 'manual',           // 'manual' | 'csv'
+    csvRows: null,            // raw parsed rows (array of arrays)
+    csvHeader: null,          // header row or null
+    csvColumns: [],           // candidate column info [{index,label}]
+    csvSelectedColumn: null,  // index chosen
+    csvFile: null,
+    recipients: [],           // [{raw, digits, valid, dup}]
+    demoMode: false
+  };
+
+  /* ================= Icons for toasts ================= */
+  var ICONS = {
+    success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+  };
+
+  function toast(type, title, msg, duration){
+    duration = duration || 4200;
+    var t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.innerHTML =
+      '<div class="toast-icon">' + ICONS[type] + '</div>' +
+      '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>' +
+      '<button type="button" class="toast-close" aria-label="Dismiss">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+      '</button><div class="toast-bar" style="animation-duration:' + duration + 'ms"></div>';
+    t.querySelector('.toast-title').textContent = title;
+    t.querySelector('.toast-msg').textContent = msg || '';
+    el.toastRegion.appendChild(t);
+    var timer = setTimeout(function(){ dismiss(); }, duration);
+    t.querySelector('.toast-close').addEventListener('click', function(){ clearTimeout(timer); dismiss(); });
+    function dismiss(){
+      t.classList.add('leaving');
+      setTimeout(function(){ t.remove(); }, 190);
+    }
+  }
+
+  /* ================= Phone validation ================= */
+  function normalizeDigits(raw){
+    var trimmed = (raw || '').trim();
+    var hasPlus = trimmed.charAt(0) === '+';
+    var digits = trimmed.replace(/[^\d]/g, '');
+    return { display: trimmed, digits: digits, e164: (hasPlus ? '+' : '') + digits };
+  }
+  function isValidPhone(digits){
+    return /^[1-9]\d{7,14}$/.test(digits);
+  }
+
+  function parseManualEntries(text){
+    var parts = (text || '').split(',');
+    var out = [];
+    for (var i = 0; i < parts.length; i++){
+      var t = parts[i].trim();
+      if (t === '') continue;
+      out.push(t);
+    }
+    return out;
+  }
+
+  function buildRecipients(rawList){
+    var seen = Object.create(null);
+    var list = [];
+    for (var i = 0; i < rawList.length; i++){
+      var raw = rawList[i];
+      if (raw.trim() === '') continue; // remove truly empty values silently
+      var norm = normalizeDigits(raw);
+      var valid = isValidPhone(norm.digits);
+      var dup = valid && !!seen[norm.digits];
+      if (valid && !dup) seen[norm.digits] = true;
+      list.push({ raw: raw.trim(), digits: norm.digits, e164: '+' + norm.digits, valid: valid, dup: dup });
+    }
+    return list;
+  }
+
+  function recomputeRecipients(){
+    if (state.mode === 'manual'){
+      var entries = parseManualEntries(el.manualNumbers.value);
+      state.recipients = buildRecipients(entries);
+    } else {
+      if (state.csvRows && state.csvSelectedColumn !== null){
+        var colIdx = state.csvSelectedColumn;
+        var startRow = state.csvHeader ? 1 : 0;
+        var rawList = [];
+        for (var r = startRow; r < state.csvRows.length; r++){
+          var row = state.csvRows[r];
+          if (row && row[colIdx] !== undefined) rawList.push(row[colIdx]);
+        }
+        state.recipients = buildRecipients(rawList);
+      } else {
+        state.recipients = [];
+      }
+    }
+    renderRecipients();
+    renderSummary();
+  }
+
+  function renderRecipients(){
+    var list = state.recipients;
+    var validCount = 0, invalidCount = 0, dupCount = 0;
+    for (var i = 0; i < list.length; i++){
+      if (list[i].valid && !list[i].dup) validCount++;
+      else if (!list[i].valid) invalidCount++;
+      else if (list[i].dup) dupCount++;
+    }
+
+    if (validCount > 0){
+      el.recipientCountChip.classList.remove('zero');
+    } else {
+      el.recipientCountChip.classList.add('zero');
+    }
+    el.recipientCountText.textContent = validCount + ' valid recipient' + (validCount === 1 ? '' : 's') + ' detected';
+
+    if (invalidCount > 0 || dupCount > 0){
+      var msgs = [];
+      if (invalidCount) msgs.push(invalidCount + ' invalid');
+      if (dupCount) msgs.push(dupCount + ' duplicate' + (dupCount === 1 ? '' : 's') + ' removed');
+      el.invalidHint.style.display = 'inline-flex';
+      el.invalidHint.textContent = msgs.join(' · ');
+    } else {
+      el.invalidHint.style.display = 'none';
+    }
+
+    if (list.length === 0){
+      el.previewWrap.style.display = 'none';
+      return;
+    }
+    el.previewWrap.style.display = 'block';
+    var LIMIT = 8;
+    var rowsHtml = '';
+    var shown = list.slice(0, LIMIT);
+    for (var j = 0; j < shown.length; j++){
+      var item = shown[j];
+      var statusHtml;
+      if (!item.valid){
+        statusHtml = '<span class="status-pill invalid"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>Invalid</span>';
+      } else if (item.dup){
+        statusHtml = '<span class="status-pill dup"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>Duplicate</span>';
+      } else {
+        statusHtml = '<span class="status-pill valid"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>Valid</span>';
+      }
+      rowsHtml += '<tr><td class="idx">' + (j+1) + '</td><td class="num">' + escapeHtml(item.raw || item.digits) + '</td><td>' + statusHtml + '</td></tr>';
+    }
+    el.previewTbody.innerHTML = rowsHtml;
+    if (list.length > LIMIT){
+      el.previewMore.style.display = 'block';
+      el.previewMore.textContent = '+ ' + (list.length - LIMIT) + ' more recipient' + ((list.length - LIMIT) === 1 ? '' : 's') + ' not shown';
+    } else {
+      el.previewMore.style.display = 'none';
+    }
+  }
+
+  function getValidUniqueCount(){
+    var n = 0;
+    for (var i = 0; i < state.recipients.length; i++){
+      if (state.recipients[i].valid && !state.recipients[i].dup) n++;
+    }
+    return n;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  /* ================= Tabs ================= */
+  function setMode(mode){
+    state.mode = mode;
+    el.tabManualBtn.classList.toggle('active', mode === 'manual');
+    el.tabCsvBtn.classList.toggle('active', mode === 'csv');
+    el.tabManualBtn.setAttribute('aria-selected', mode === 'manual');
+    el.tabCsvBtn.setAttribute('aria-selected', mode === 'csv');
+    el.tabManualPanel.classList.toggle('active', mode === 'manual');
+    el.tabCsvPanel.classList.toggle('active', mode === 'csv');
+    recomputeRecipients();
+  }
+  el.tabManualBtn.addEventListener('click', function(){ setMode('manual'); });
+  el.tabCsvBtn.addEventListener('click', function(){ setMode('csv'); });
+  el.manualNumbers.addEventListener('input', recomputeRecipients);
+
+  /* ================= Token show/hide ================= */
+  var tokenVisible = false;
+  el.tokenToggle.addEventListener('click', function(){
+    tokenVisible = !tokenVisible;
+    el.apiToken.type = tokenVisible ? 'text' : 'password';
+    el.eyeOpen.style.display = tokenVisible ? 'none' : 'block';
+    el.eyeClosed.style.display = tokenVisible ? 'block' : 'none';
+    el.tokenToggle.setAttribute('aria-label', tokenVisible ? 'Hide token' : 'Show token');
+  });
+  el.apiToken.addEventListener('input', function(){
+    el.tokenField.classList.remove('has-error');
+  });
+
+  /* ================= CSV handling ================= */
+  var PHONE_HEADER_HINTS = ['phone','mobile','number','msisdn','recipient','contact','tel','cell'];
+
+  function parseCsvText(text){
+    // Lightweight CSV parser: handles quoted fields with embedded commas/quotes.
+    var rows = [];
+    var row = [];
+    var field = '';
+    var inQuotes = false;
+    for (var i = 0; i < text.length; i++){
+      var c = text[i];
+      if (inQuotes){
+        if (c === '"'){
+          if (text[i+1] === '"'){ field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ','){ row.push(field); field = ''; }
+        else if (c === '\n' || c === '\r'){
+          if (c === '\r' && text[i+1] === '\n') i++;
+          row.push(field); field = '';
+          if (row.length > 1 || row[0] !== '') rows.push(row);
+          row = [];
+        } else field += c;
+      }
+    }
+    if (field !== '' || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return r.some(function(v){ return v.trim() !== ''; }); });
+  }
+
+  function looksLikePhone(v){
+    var d = (v || '').replace(/[^\d]/g, '');
+    return d.length >= 8 && d.length <= 15;
+  }
+
+  function detectColumns(rows){
+    if (!rows.length) return { header: null, columns: [] };
+    var first = rows[0];
+    var maxCols = 0;
+    for (var i = 0; i < rows.length; i++) maxCols = Math.max(maxCols, rows[i].length);
+
+    // does first row look like a header (non-numeric-ish cells)?
+    var firstLooksHeader = first.every(function(v){ return !looksLikePhone(v) && isNaN(Number(v.replace(/[^\d.-]/g,''))); }) ||
+                            first.some(function(v){ return PHONE_HEADER_HINTS.some(function(h){ return v.toLowerCase().indexOf(h) !== -1; }); });
+
+    var header = firstLooksHeader ? first : null;
+    var candidates = [];
+    for (var c = 0; c < maxCols; c++){
+      var label = header ? (header[c] || ('Column ' + (c+1))) : ('Column ' + (c+1));
+      var sampleStart = header ? 1 : 0;
+      var hits = 0, total = 0;
+      for (var r = sampleStart; r < Math.min(rows.length, sampleStart + 25); r++){
+        var v = rows[r][c];
+        if (v === undefined) continue;
+        total++;
+        if (looksLikePhone(v)) hits++;
+      }
+      var headerMatch = header && PHONE_HEADER_HINTS.some(function(h){ return (header[c] || '').toLowerCase().indexOf(h) !== -1; });
+      var score = (total ? hits / total : 0) + (headerMatch ? 1 : 0);
+      candidates.push({ index: c, label: label, score: score, headerMatch: !!headerMatch });
+    }
+    candidates.sort(function(a,b){ return b.score - a.score; });
+    return { header: header, columns: candidates };
+  }
+
+  function resetCsvState(){
+    state.csvRows = null;
+    state.csvHeader = null;
+    state.csvColumns = [];
+    state.csvSelectedColumn = null;
+    state.csvFile = null;
+    el.fileChip.style.display = 'none';
+    el.dropzoneWrap.style.display = 'block';
+    el.columnPicker.style.display = 'none';
+    el.csvError.style.display = 'none';
+    el.csvInput.value = '';
+  }
+
+  function handleCsvFile(file){
+    el.csvError.style.display = 'none';
+    if (!file){ return; }
+    var nameOk = /\.csv$/i.test(file.name) || file.type === 'text/csv' || file.type === 'application/vnd.ms-excel' || file.type === '';
+    if (!nameOk){
+      showCsvError('That file doesn’t look like a CSV. Please upload a .csv file.');
+      toast('error', 'Invalid file', 'Only .csv files are supported.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024){
+      showCsvError('File is too large. Maximum size is 5 MB.');
+      toast('error', 'File too large', 'CSV files must be 5 MB or smaller.');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var text = String(e.target.result || '');
+        var rows = parseCsvText(text);
+        if (!rows.length){
+          showCsvError('This CSV file appears to be empty.');
+          toast('error', 'Empty CSV', 'No rows were found in that file.');
+          return;
+        }
+        var detected = detectColumns(rows);
+        state.csvRows = rows;
+        state.csvHeader = detected.header;
+        state.csvColumns = detected.columns;
+        state.csvFile = file;
+
+        var dataRowCount = rows.length - (detected.header ? 1 : 0);
+        el.fileChipName.textContent = file.name;
+        el.fileChipMeta.textContent = formatBytes(file.size) + ' · ' + dataRowCount + ' row' + (dataRowCount === 1 ? '' : 's') + ' detected';
+        el.fileChip.style.display = 'block';
+        el.dropzoneWrap.style.display = 'none';
+
+        var strongCandidates = detected.columns.filter(function(c){ return c.score > 0; });
+        if (detected.columns.length > 1 && strongCandidates.length !== 1){
+          populateColumnPicker(detected.columns);
+          el.columnPicker.style.display = 'flex';
+          state.csvSelectedColumn = detected.columns[0].index;
+        } else {
+          el.columnPicker.style.display = 'none';
+          state.csvSelectedColumn = detected.columns.length ? detected.columns[0].index : 0;
+        }
+
+        recomputeRecipients();
+        toast('success', 'CSV loaded', dataRowCount + ' row' + (dataRowCount === 1 ? '' : 's') + ' read from ' + file.name + '.');
+      } catch (err){
+        showCsvError('Couldn’t read this CSV file. Please check its formatting and try again.');
+        toast('error', 'CSV parsing error', 'The file could not be parsed.');
+      }
+    };
+    reader.onerror = function(){
+      showCsvError('Couldn’t read this file from disk.');
+      toast('error', 'Read error', 'The file could not be read.');
+    };
+    reader.readAsText(file);
+  }
+
+  function showCsvError(msg){
+    el.csvError.style.display = 'flex';
+    el.csvError.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> ' + escapeHtml(msg);
+  }
+
+  function populateColumnPicker(columns){
+    var html = '';
+    for (var i = 0; i < columns.length; i++){
+      html += '<option value="' + columns[i].index + '">' + escapeHtml(columns[i].label) + '</option>';
+    }
+    el.columnSelect.innerHTML = html;
+    el.columnSelect.value = columns[0].index;
+  }
+  el.columnSelect.addEventListener('change', function(){
+    state.csvSelectedColumn = Number(el.columnSelect.value);
+    recomputeRecipients();
+  });
+
+  function formatBytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+    return (n/(1024*1024)).toFixed(1) + ' MB';
+  }
+
+  el.browseBtn.addEventListener('click', function(e){ e.stopPropagation(); el.csvInput.click(); });
+  el.dropzone.addEventListener('click', function(){ el.csvInput.click(); });
+  el.dropzone.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); el.csvInput.click(); } });
+  el.csvInput.addEventListener('change', function(){
+    if (el.csvInput.files && el.csvInput.files[0]) handleCsvFile(el.csvInput.files[0]);
+  });
+  ['dragenter','dragover'].forEach(function(evt){
+    el.dropzone.addEventListener(evt, function(e){ e.preventDefault(); e.stopPropagation(); el.dropzone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    el.dropzone.addEventListener(evt, function(e){ e.preventDefault(); e.stopPropagation(); el.dropzone.classList.remove('drag'); });
+  });
+  el.dropzone.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleCsvFile(f);
+  });
+  el.fileChipRemove.addEventListener('click', function(){
+    resetCsvState();
+    recomputeRecipients();
+    toast('info', 'File removed', 'The uploaded CSV has been cleared.');
+  });
+
+  /* ================= Message: char/segment counting ================= */
+  var GSM7_BASIC = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+  var GSM7_EXT = "^{}\\[~]|€";
+
+  function computeSmsInfo(message){
+    var isGsm7 = true;
+    for (var i = 0; i < message.length; i++){
+      var ch = message[i];
+      if (GSM7_BASIC.indexOf(ch) === -1 && GSM7_EXT.indexOf(ch) === -1){ isGsm7 = false; break; }
+    }
+    var units = 0;
+    if (isGsm7){
+      for (var j = 0; j < message.length; j++){
+        units += GSM7_EXT.indexOf(message[j]) !== -1 ? 2 : 1;
+      }
+    } else {
+      units = Array.from(message).length;
+    }
+    var singleLimit = isGsm7 ? 160 : 70;
+    var multiLimit = isGsm7 ? 153 : 67;
+    var segments = units === 0 ? 0 : (units <= singleLimit ? 1 : Math.ceil(units / multiLimit));
+    var capacity = segments <= 1 ? singleLimit : segments * multiLimit;
+    return {
+      encoding: isGsm7 ? 'GSM-7' : 'UCS-2',
+      length: message.length,
+      units: units,
+      segments: segments,
+      remaining: Math.max(capacity - units, 0),
+      singleLimit: singleLimit
+    };
+  }
+
+  function renderMessageStats(){
+    var msg = el.messageInput.value;
+    var info = computeSmsInfo(msg);
+    el.charCount.textContent = info.length;
+    el.charRemaining.textContent = info.remaining;
+    el.segmentCount.textContent = info.segments;
+    el.segmentLabel.textContent = 'segment' + (info.segments === 1 ? '' : 's');
+    el.encodingBadge.textContent = info.encoding;
+    if (msg.trim() !== ''){
+      el.messageInput.parentElement && el.messageError.style.removeProperty('display');
+      el.messageError.style.display = 'none';
+    }
+    return info;
+  }
+
+  function renderSummary(){
+    var validCount = getValidUniqueCount();
+    var info = computeSmsInfo(el.messageInput.value);
+    el.statRecipients.textContent = validCount;
+    el.statSegments.textContent = info.segments;
+
+    if (el.messageInput.value.trim() === ''){
+      el.bubbleText.textContent = 'Your message will appear here…';
+      el.bubbleText.classList.add('empty');
+    } else {
+      el.bubbleText.textContent = el.messageInput.value;
+      el.bubbleText.classList.remove('empty');
+    }
+  }
+
+  el.messageInput.addEventListener('input', function(){ renderMessageStats(); renderSummary(); });
+  el.clearMessageBtn.addEventListener('click', function(){
+    el.messageInput.value = '';
+    renderMessageStats();
+    renderSummary();
+    el.messageInput.focus();
+  });
+
+  /* ================= Validation ================= */
+  function validateForSend(){
+    var errors = [];
+    var token = el.apiToken.value.trim();
+    var validCount = getValidUniqueCount();
+    var message = el.messageInput.value;
+
+    el.tokenField.classList.remove('has-error');
+    el.messageError.style.display = 'none';
+
+    if (!token){
+      el.tokenField.classList.add('has-error');
+      errors.push({ field: 'token', msg: 'API token is required to send messages.' });
+    }
+    if (validCount === 0){
+      errors.push({ field: 'recipients', msg: 'Add at least one valid recipient.' });
+    }
+    if (!message.trim()){
+      el.messageError.style.display = 'flex';
+      errors.push({ field: 'message', msg: 'Message cannot be empty.' });
+    }
+    return errors;
+  }
+
+  /* ================= Send flow ================= */
+  el.sendBtn.addEventListener('click', function(){
+    var errors = validateForSend();
+    if (errors.length){
+      var first = errors[0];
+      if (first.field === 'token') toast('error', 'Missing API token', 'Enter your API token before sending.');
+      else if (first.field === 'recipients') toast('error', 'No recipients', 'Add or upload at least one valid phone number.');
+      else if (first.field === 'message') toast('error', 'Empty message', 'Write a message before sending.');
+      return;
+    }
+    var info = computeSmsInfo(el.messageInput.value);
+    el.confRecipients.textContent = getValidUniqueCount();
+    el.confSegments.textContent = info.segments;
+    el.confirmOverlay.classList.add('open');
+  });
+
+  el.modalCancel.addEventListener('click', closeModal);
+  el.confirmOverlay.addEventListener('click', function(e){ if (e.target === el.confirmOverlay) closeModal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && el.confirmOverlay.classList.contains('open')) closeModal(); });
+  function closeModal(){ el.confirmOverlay.classList.remove('open'); }
+
+  el.modalConfirm.addEventListener('click', function(){
+    performSend();
+  });
+
+  /* ================= Demo mode toggle =================
+     OFF by default: a real POST is attempted against SEND_ENDPOINT, and a
+     failed/unreachable request is reported as a genuine error — it is never
+     silently treated as a success. ON: no network request is made at all;
+     the send is simulated so the UI/UX can be demonstrated safely, and every
+     visible state (badge, banner, toast, modal copy) says "demo" in words,
+     never green "success" styling, so a simulated run can never be mistaken
+     for a delivered message. */
+  el.demoToggle.addEventListener('change', function(){
+    state.demoMode = el.demoToggle.checked;
+    el.demoBadge.classList.toggle('on', state.demoMode);
+    el.modalSub.textContent = state.demoMode
+      ? 'Demo mode is on — this will simulate a send and will NOT contact sms.leapve.com.'
+      : 'Double-check the details below — this will send real messages to sms.leapve.com.';
+    if (state.demoMode){
+      toast('warning', 'Demo mode enabled', 'Sends will be simulated — no real messages will go out.');
+    }
+  });
+
+  function setSending(isSending){
+    el.sendBtn.disabled = isSending;
+    el.modalConfirm.disabled = isSending;
+    el.sendBtn.classList.toggle('loading', isSending);
+    el.modalConfirm.classList.toggle('loading', isSending);
+  }
+
+  function extractBalance(raw){
+    var data = raw;
+    if (typeof raw === 'string'){
+      try { data = JSON.parse(raw); } catch(e) {
+        var m = raw.match(/(?:balance|credit|credits|remaining)\s*[:=]\s*["']?([\d,.]+)/i);
+        return m ? m[1] : null;
+      }
+    }
+    if (data == null) return null;
+    if (typeof data === 'number') return data;
+    if (typeof data === 'string'){
+      var n = Number(data.replace(/,/g,'').trim());
+      return isNaN(n) ? null : n;
+    }
+    if (typeof data === 'object'){
+      var keys = ['balance','credit','credits','sms_balance','smsBalance','remaining','remaining_balance'];
+      for (var i=0;i<keys.length;i++){
+        if (data[keys[i]] !== undefined && data[keys[i]] !== null){
+          var v = data[keys[i]];
+          var nested = extractBalance(v);
+          if (nested !== null) return nested;
+        }
+      }
+      if (data.data !== undefined){ var d = extractBalance(data.data); if (d !== null) return d; }
+      if (data.result !== undefined){ var r = extractBalance(data.result); if (r !== null) return r; }
+    }
+    return null;
+  }
+
+  function updateBalanceFromResponse(json){
+    if (!json) return;
+
+    var balance = json.balance;
+
+    if (
+      balance === null ||
+      balance === undefined ||
+      balance === ""
+    ){
+      balance = extractBalance(json.balance_response);
+    }
+
+    if (
+      balance === null ||
+      balance === undefined ||
+      balance === ""
+    ){
+      return;
+    }
+
+    var n = Number(
+      String(balance).replace(/,/g, "").trim()
+    );
+
+    el.balanceValue.textContent =
+      isNaN(n) ? String(balance) : n.toLocaleString();
+
+    el.balanceTile.classList.add('show');
+  }
+
+  /* ================= Balance checker ================= */
+  function checkBalance(){
+    var apiToken = el.apiToken.value.trim();
+
+    if (!apiToken){
+      el.tokenField.classList.add('has-error');
+      el.topBalanceStatus.textContent = 'API token is required';
+      el.topBalanceStatus.className = 'balance-checker-status error';
+      el.apiToken.focus();
+      return;
+    }
+
+    el.tokenField.classList.remove('has-error');
+    el.checkBalanceBtn.disabled = true;
+    el.checkBalanceBtn.textContent = 'Checking...';
+    el.topBalanceStatus.textContent = 'Requesting balance...';
+    el.topBalanceStatus.className = 'balance-checker-status';
+
+    fetch(SEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'balance',
+        api_token: apiToken
+      })
+    }).then(function(res){
+      return res.text().then(function(raw){
+        var json = null;
+        try { json = raw ? JSON.parse(raw) : null; } catch (e) { json = null; }
+        return { ok: res.ok, status: res.status, json: json, raw: raw };
+      });
+    }).then(function(result){
+      var json = result.json;
+
+      if (!result.ok || !json || json.success !== true){
+        var msg = (json && json.message) ? json.message : 'Unable to retrieve balance.';
+        throw new Error(msg);
+      }
+
+      var balance = json.balance;
+
+      if (balance === null || balance === undefined || balance === ''){
+        balance = extractBalance(json.balance_response);
+      }
+
+      if (balance === null || balance === undefined || balance === ''){
+        throw new Error('Balance value was not returned by the Worker.');
+      }
+
+      var n = Number(String(balance).replace(/,/g,'').trim());
+      el.topBalanceValue.textContent = isNaN(n) ? String(balance) : n.toLocaleString();
+      el.topBalanceStatus.textContent = 'Current available balance';
+      el.topBalanceStatus.className = 'balance-checker-status success';
+
+      el.balanceValue.textContent = isNaN(n) ? String(balance) : n.toLocaleString();
+      el.balanceTile.classList.add('show');
+
+      toast('success', 'Balance updated', 'Current WhySMS balance: ' + (isNaN(n) ? String(balance) : n.toLocaleString()));
+    }).catch(function(err){
+      el.topBalanceStatus.textContent = err && err.message ? err.message : 'Balance request failed';
+      el.topBalanceStatus.className = 'balance-checker-status error';
+      toast('error', 'Balance check failed', err && err.message ? err.message : 'Unable to retrieve balance.');
+    }).finally(function(){
+      el.checkBalanceBtn.disabled = false;
+      el.checkBalanceBtn.textContent = 'Check balance';
+    });
+  }
+
+  el.checkBalanceBtn.addEventListener('click', checkBalance);
+
+  function performSend(){
+    setSending(true);
+    el.resultBanner.className = 'result-banner';
+
+    var uniqueValid = [];
+    for (var i = 0; i < state.recipients.length; i++){
+      var r = state.recipients[i];
+      if (r.valid && !r.dup) uniqueValid.push(r.e164);
+    }
+    var payload = {
+      api_token: el.apiToken.value.trim(),
+      recipient: uniqueValid.join(','),
+      sender_id: FIXED.sender,
+      type: FIXED.type,
+      message: el.messageInput.value
+    };
+    var count = uniqueValid.length;
+
+    if (state.demoMode){
+      // No network call at all — purely a UI simulation, clearly labeled.
+      setTimeout(function(){ onSendDemo(count); }, 900);
+      return;
+    }
+
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timeout = setTimeout(function(){ controller && controller.abort(); }, 8000);
+
+    fetch(SEND_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller ? controller.signal : undefined
+    }).then(function(res){
+      clearTimeout(timeout);
+      return res.text().then(function(raw){
+        var json = null;
+        try { json = raw ? JSON.parse(raw) : null; } catch (e) { json = null; }
+        return { httpOk: res.ok, status: res.status, json: json, raw: raw };
+      });
+    }).then(function(result){
+      updateBalanceFromResponse(result.json);
+      // Many SMS gateways answer with HTTP 200 even when the send itself
+      // failed (bad token, bad sender, etc.) and put the real result inside
+      // the JSON body instead. So a 200 status alone never means success
+      // here — the body is inspected for the gateway's own success/failure
+      // signal, and only a body that actually confirms success counts.
+      var verdict = interpretApiResult(result.json, result.status, result.httpOk);
+      if (!verdict.ok){
+        var err = new Error(verdict.message || ('HTTP ' + result.status));
+        err.isApiFailure = true;
+        throw err;
+      }
+      onSendSuccess(count);
+    }).catch(function(err){
+      clearTimeout(timeout);
+      onSendError(count, err);
+    });
+  }
+
+  /* Reads the gateway's own success/failure signal out of the JSON body
+     rather than trusting the HTTP status code alone.
+
+     This backend wraps the real gateway reply as a JSON-ENCODED STRING in
+     `whysms_response`. The outer `success` / `whysms_status` fields only
+     mean "the proxy call itself completed" — confirmed against a live
+     response, they stay `success: true` / `whysms_status: 200` even when
+     the gateway rejected the send outright (e.g. bad token):
+       { "success": true, "whysms_status": 200,
+         "whysms_response": "{\"status\":\"error\",\"message\":\"...\"}" }
+     So the outer fields are never trusted on their own — `whysms_response`
+     is parsed as its own JSON document and ITS `status`/`message` is the
+     real verdict. A plain (non-wrapped) response shape is still supported
+     as a fallback for other endpoints. */
+  function interpretApiResult(json, httpStatus, httpOk){
+    if (json && typeof json === 'object'){
+
+      if (typeof json.whysms_response === 'string' && json.whysms_response.trim() !== ''){
+        var inner = null;
+        try { inner = JSON.parse(json.whysms_response); } catch (e) { inner = null; }
+
+        if (inner && typeof inner === 'object'){
+          var innerMsg = inner.message || inner.msg || inner.error || inner.errors || null;
+          if (innerMsg && typeof innerMsg !== 'string') innerMsg = JSON.stringify(innerMsg);
+
+          if (typeof inner.status === 'string'){
+            var innerStatus = inner.status.toLowerCase();
+            if (['success','ok','sent','done','completed','true'].indexOf(innerStatus) !== -1) return { ok: true, message: innerMsg };
+            if (['error','failed','fail','failure','invalid','rejected','false'].indexOf(innerStatus) !== -1) return { ok: false, message: innerMsg };
+          }
+          if (typeof inner.status === 'boolean') return { ok: inner.status, message: innerMsg };
+          if (typeof inner.success === 'boolean') return { ok: inner.success, message: innerMsg };
+          if (inner.error || inner.errors) return { ok: false, message: innerMsg || 'The gateway reported an error.' };
+          // Parsed fine but no field we recognize — don't guess success.
+          return { ok: false, message: innerMsg || json.whysms_response };
+        }
+
+        // Not parsable as JSON — surface the raw text rather than assume ok.
+        var rawLower = json.whysms_response.toLowerCase();
+        var looksBad = rawLower.indexOf('error') !== -1 || rawLower.indexOf('fail') !== -1 ||
+                        rawLower.indexOf('invalid') !== -1 || rawLower.indexOf('reject') !== -1 ||
+                        rawLower.indexOf('unauthor') !== -1;
+        return { ok: !looksBad, message: json.whysms_response };
+      }
+
+      // Fallback: plain (non-wrapped) response shapes.
+      var msg = json.message || json.msg || json.error || json.errors || null;
+      if (msg && typeof msg !== 'string') msg = JSON.stringify(msg);
+
+      if (typeof json.success === 'boolean') return { ok: json.success, message: msg };
+      if (typeof json.status === 'boolean') return { ok: json.status, message: msg };
+      if (typeof json.ok === 'boolean') return { ok: json.ok, message: msg };
+      if (typeof json.status === 'string'){
+        var s = json.status.toLowerCase();
+        if (['success','ok','sent','done','completed'].indexOf(s) !== -1) return { ok: true, message: msg };
+        if (['error','failed','fail','failure','invalid','rejected'].indexOf(s) !== -1) return { ok: false, message: msg };
+      }
+      if (json.error || json.errors){
+        return { ok: false, message: msg || 'The API reported an error.' };
+      }
+    }
+    // No recognizable body signal — fall back to the HTTP status, but an
+    // unparsable/empty body is treated as a failure rather than assumed ok.
+    if (json === null) return { ok: false, message: 'The API returned an unexpected (empty or non-JSON) response.' };
+    return { ok: !!httpOk, message: null };
+  }
+
+  function onSendSuccess(count){
+    setSending(false);
+    closeModal();
+    el.resultBanner.classList.add('show', 'success');
+    el.resultBanner.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
+      '<div><b>Sent successfully</b>SMS sent successfully to ' + count + ' recipient' + (count === 1 ? '' : 's') + '.</div>';
+    toast('success', 'SMS sent', 'SMS sent successfully to ' + count + ' recipient' + (count === 1 ? '' : 's') + '.');
+  }
+
+  function onSendDemo(count){
+    setSending(false);
+    closeModal();
+    el.resultBanner.classList.add('show', 'warning');
+    el.resultBanner.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+      '<div><b>Demo send complete — nothing was delivered</b>Simulated a send to ' + count + ' recipient' + (count === 1 ? '' : 's') + '. Turn off Demo mode to send for real.</div>';
+    toast('warning', 'Demo send (not delivered)', 'Simulated only — turn off Demo mode to actually send.');
+  }
+
+  function onSendError(count, err){
+    setSending(false);
+    closeModal();
+    var reason = 'Please check your API token and try again.';
+    var extra = 'If this page can’t reach sms.leapve.com from here (CORS or network restrictions), enable Demo mode to preview the flow, or host this page somewhere that can reach the API.';
+    if (err && err.name === 'AbortError'){
+      reason = 'The request timed out. Check your connection and try again.';
+    } else if (err && err.isApiFailure){
+      // The request reached the API and the API itself reported a failure
+      // (e.g. invalid token) — show its own message instead of the generic
+      // network-trouble copy.
+      reason = err.message || 'The API rejected this request.';
+      extra = 'Double-check your API token, recipients and message, then try again.';
+    }
+    el.resultBanner.classList.add('show', 'error');
+    el.resultBanner.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
+      '<div><b>Unable to send SMS</b>' + escapeHtml(reason) + ' ' + escapeHtml(extra) + '</div>';
+    toast('error', 'Unable to send SMS', reason);
+  }
+
+  /* ================= Init ================= */
+  el.configApiEndpoint.textContent = SEND_ENDPOINT;
+  try {
+    el.envEndpointHost.textContent = new URL(SEND_ENDPOINT).host;
+  } catch (e) {
+    el.envEndpointHost.textContent = SEND_ENDPOINT;
+  }
+  renderMessageStats();
+  renderSummary();
+  recomputeRecipients();
+
+})();
+</script>
