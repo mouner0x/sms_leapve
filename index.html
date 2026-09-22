@@ -1389,20 +1389,76 @@
 
   function extractBalance(raw){
     var data = raw;
+
     if (typeof raw === 'string'){
-      try { data = JSON.parse(raw); } catch(e) {
-        var m = raw.match(/(?:balance|credit|credits|remaining)\s*[:=]\s*["']?([\d,.]+)/i);
-        return m ? m[1] : null;
+      try {
+        data = JSON.parse(raw);
+      } catch(e) {
+        var text = raw.trim();
+
+        var m = text.match(
+          /(?:balance|credit|credits|remaining(?:_balance)?|available(?:_balance)?)\s*[:=]?\s*["']?([\d,.]+\s*(?:EGP|USD|EUR|GBP)?)/i
+        );
+
+        if (m) return m[1].trim();
+
+        var direct = text.match(/([\d,.]+\s*(?:EGP|USD|EUR|GBP))/i);
+        return direct ? direct[1].trim() : null;
       }
     }
+
     if (data == null) return null;
+
     if (typeof data === 'number') return data;
+
     if (typeof data === 'string'){
-      var n = Number(data.replace(/,/g,'').trim());
-      return isNaN(n) ? null : n;
+      var s = data.trim();
+
+      if (s === '') return null;
+
+      var n = Number(s.replace(/,/g,'').trim());
+
+      if (!isNaN(n)) return n;
+
+      var withCurrency = s.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
+
+      if (withCurrency){
+        return withCurrency[1].replace(/,/g,'') + ' ' + withCurrency[2].toUpperCase();
+      }
+
+      return null;
     }
+
     if (typeof data === 'object'){
-      var keys = ['balance','credit','credits','sms_balance','smsBalance','remaining','remaining_balance'];
+      /* WhySMS balance response:
+         data.remaining_balance = "4,789 EGP"
+      */
+      if (
+        data.remaining_balance !== undefined &&
+        data.remaining_balance !== null &&
+        data.remaining_balance !== ''
+      ){
+        return String(data.remaining_balance).trim();
+      }
+
+      var keys = [
+        'balance',
+        'credit',
+        'credits',
+        'sms_balance',
+        'smsBalance',
+        'remaining',
+        'remaining_balance',
+        'available_balance',
+        'availableBalance',
+        'wallet_balance',
+        'walletBalance',
+        'account_balance',
+        'accountBalance',
+        'current_balance',
+        'currentBalance'
+      ];
+
       for (var i=0;i<keys.length;i++){
         if (data[keys[i]] !== undefined && data[keys[i]] !== null){
           var v = data[keys[i]];
@@ -1410,10 +1466,49 @@
           if (nested !== null) return nested;
         }
       }
-      if (data.data !== undefined){ var d = extractBalance(data.data); if (d !== null) return d; }
-      if (data.result !== undefined){ var r = extractBalance(data.result); if (r !== null) return r; }
+
+      if (data.data !== undefined){
+        var d = extractBalance(data.data);
+        if (d !== null) return d;
+      }
+
+      if (data.result !== undefined){
+        var r = extractBalance(data.result);
+        if (r !== null) return r;
+      }
     }
+
     return null;
+  }
+
+  function formatBalance(balance){
+    if (balance === null || balance === undefined || balance === '') {
+      return null;
+    }
+
+    if (typeof balance === 'number' && !isNaN(balance)){
+      return balance.toLocaleString();
+    }
+
+    var value = String(balance).trim();
+
+    var match = value.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
+
+    if (match){
+      var amount = Number(match[1].replace(/,/g,''));
+
+      if (!isNaN(amount)){
+        return amount.toLocaleString() + ' ' + match[2].toUpperCase();
+      }
+    }
+
+    var numeric = Number(value.replace(/,/g,''));
+
+    if (!isNaN(numeric)){
+      return numeric.toLocaleString();
+    }
+
+    return value;
   }
 
   function updateBalanceFromResponse(json){
@@ -1437,13 +1532,9 @@
       return;
     }
 
-    var n = Number(
-      String(balance).replace(/,/g, "").trim()
-    );
+    var formattedBalance = formatBalance(balance);
 
-    el.balanceValue.textContent =
-      isNaN(n) ? String(balance) : n.toLocaleString();
-
+    el.balanceValue.textContent = formattedBalance;
     el.balanceTile.classList.add('show');
   }
 
@@ -1499,15 +1590,16 @@
         throw new Error('Balance value was not returned by the Worker.');
       }
 
-      var n = Number(String(balance).replace(/,/g,'').trim());
-      el.topBalanceValue.textContent = isNaN(n) ? String(balance) : n.toLocaleString();
+      var formattedBalance = formatBalance(balance);
+
+      el.topBalanceValue.textContent = formattedBalance;
       el.topBalanceStatus.textContent = 'Current available balance';
       el.topBalanceStatus.className = 'balance-checker-status success';
 
-      el.balanceValue.textContent = isNaN(n) ? String(balance) : n.toLocaleString();
+      el.balanceValue.textContent = formattedBalance;
       el.balanceTile.classList.add('show');
 
-      toast('success', 'Balance updated', 'Current WhySMS balance: ' + (isNaN(n) ? String(balance) : n.toLocaleString()));
+      toast('success', 'Balance updated', 'Current WhySMS balance: ' + formattedBalance);
     }).catch(function(err){
       el.topBalanceStatus.textContent = err && err.message ? err.message : 'Balance request failed';
       el.topBalanceStatus.className = 'balance-checker-status error';
