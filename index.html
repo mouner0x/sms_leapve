@@ -790,6 +790,7 @@
   /* ================= Fixed configuration (not user-editable) ================= */
   var FIXED = { apiBase: "sms.leapve", sender: "My Order", type: "plain" };
   var SEND_ENDPOINT = "https://sms.leapve.com/api/http/sms/send";
+  var BALANCE_ENDPOINT = "https://sms.leapve.com/api/balance";
 
   /* ================= Elements ================= */
   var el = {
@@ -1556,16 +1557,12 @@
     el.topBalanceStatus.textContent = 'Requesting balance...';
     el.topBalanceStatus.className = 'balance-checker-status';
 
-    fetch(SEND_ENDPOINT, {
-      method: 'POST',
+    fetch(BALANCE_ENDPOINT, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiToken,
         'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        action: 'balance',
-        api_token: apiToken
-      })
+      }
     }).then(function(res){
       return res.text().then(function(raw){
         var json = null;
