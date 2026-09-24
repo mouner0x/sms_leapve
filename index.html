@@ -1573,8 +1573,7 @@
       var json = result.json;
 
       if (!result.ok || !json || json.success !== true){
-        var msg = (json && json.message) ? json.message : 'Unable to retrieve balance.';
-        throw new Error(msg);
+        throw new Error('Unable to retrieve the current SMS balance.');
       }
 
       var balance = json.balance;
@@ -1584,7 +1583,7 @@
       }
 
       if (balance === null || balance === undefined || balance === ''){
-        throw new Error('Balance value was not returned by the Worker.');
+        throw new Error('Unable to retrieve the current balance.');
       }
 
       var formattedBalance = formatBalance(balance);
@@ -1596,7 +1595,7 @@
       el.balanceValue.textContent = formattedBalance;
       el.balanceTile.classList.add('show');
 
-      toast('success', 'Balance updated', 'Current WhySMS balance: ' + formattedBalance);
+      toast('success', 'Balance updated', 'Current SMS balance: ' + formattedBalance);
     }).catch(function(err){
       el.topBalanceStatus.textContent = err && err.message ? err.message : 'Balance request failed';
       el.topBalanceStatus.className = 'balance-checker-status error';
