@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LEAPVE Send SMS</title>
 <meta name="color-scheme" content="light dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -96,6 +101,7 @@
     font-family:var(--font-body);
     -webkit-font-smoothing:antialiased;
     padding-inline:20px;
+    margin:0;
   }
   h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
   p{margin:0}
@@ -341,7 +347,7 @@
   .msg-preview-head span{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:.04em;text-transform:uppercase}
   .bubble{
     background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:10px 13px;
-    font-size:13.5px;line-height:1.5;color:var(--ink);max-height:120px;overflow-y:auto;word-wrap:break-word;
+    font-size:13.5px;line-height:1.5;color:var(--ink);max-height:120px;overflow-y:auto;word-wrap:break-word;white-space:pre-wrap;
   }
   .bubble.empty{color:var(--ink-faint);font-style:normal}
   .bubble-from{font-size:10.5px;color:var(--ink-faint);margin-top:7px;font-family:var(--font-mono)}
@@ -359,7 +365,6 @@
   .btn.loading .spinner{display:inline-flex}
   .btn.loading .btn-label,.btn.loading .btn-icon{display:none}
   .spinner{width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite}
-  :root[data-theme="dark"] .spinner,@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .spinner{border-top-color:var(--accent-contrast)}}
   @keyframes spin{to{transform:rotate(360deg)}}
 
   .send-hint{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;font-size:11.5px;color:var(--ink-faint)}
@@ -390,13 +395,25 @@
   }
   .demo-badge.on{display:inline-flex}
 
-  .result-banner{display:none;align-items:flex-start;gap:10px;padding:12px 13px;border-radius:var(--radius-md);margin-top:14px;font-size:12.5px;line-height:1.5}
+  .result-banner{display:none;align-items:flex-start;gap:10px;padding:12px 13px;border-radius:var(--radius-md);margin-top:14px;font-size:12.5px;line-height:1.55}
   .result-banner.show{display:flex}
   .result-banner.success{background:var(--success-soft);color:var(--success)}
   .result-banner.error{background:var(--danger-soft);color:var(--danger)}
   .result-banner.warning{background:var(--warning-soft);color:var(--warning)}
+  .result-banner.info{background:var(--accent-soft);color:var(--accent-ink)}
   .result-banner svg{width:16px;height:16px;flex:none;margin-top:1px}
-  .result-banner b{display:block;color:inherit;font-size:13px;margin-bottom:2px}
+  .result-banner b.title{display:block;color:inherit;font-size:13px;margin-bottom:2px}
+  .result-banner .rb-body{flex:1;min-width:0}
+
+  /* Batch progress (new) */
+  .progress-track{height:6px;border-radius:100px;background:color-mix(in srgb, currentColor 18%, transparent);margin-top:8px;overflow:hidden}
+  .progress-fill{height:100%;background:currentColor;border-radius:100px;transition:width .3s}
+  .batch-stats{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-family:var(--font-mono);font-size:11.5px}
+  .retry-btn{
+    margin-top:10px;border:1px solid currentColor;background:transparent;color:inherit;border-radius:8px;
+    padding:7px 12px;font-weight:700;font-size:12px;cursor:pointer;
+  }
+  .retry-btn:hover{background:color-mix(in srgb, currentColor 10%, transparent)}
 
   /* ============ Modal ============ */
   .modal-overlay{
@@ -468,6 +485,8 @@
     .page-heading h1{font-size:22px}
   }
 </style>
+</head>
+<body>
 
 <div class="app">
 
@@ -542,7 +561,7 @@
             <div class="step-badge">2</div>
             <div>
               <div class="card-title">Recipients</div>
-              <div class="card-desc">Add numbers manually or upload a CSV file</div>
+              <div class="card-desc">Add numbers manually or upload a CSV file — no limit, sent in batches</div>
             </div>
           </div>
           <div class="tabs" role="tablist">
@@ -556,7 +575,7 @@
           <textarea class="input mono" id="manualNumbers" placeholder="201023017409,201112345678,201098765432"></textarea>
           <div class="field-hint">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            Separate multiple phone numbers with commas.
+            Separate numbers with commas or new lines.
           </div>
         </div>
 
@@ -567,7 +586,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M12 4l-4 4M12 4l4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
               </div>
               <div class="dropzone-title">Drag &amp; drop your CSV file here or <button type="button" id="browseBtn">browse</button></div>
-              <div class="dropzone-sub">.csv up to 5&nbsp;MB · one phone number per row</div>
+              <div class="dropzone-sub">.csv up to 5&nbsp;MB · one phone number per row · any number of rows</div>
             </div>
             <input type="file" id="csvInput" accept=".csv,text/csv" hidden>
           </div>
@@ -682,6 +701,13 @@
             </span>
             <span class="config-val">Plain Text</span>
           </div>
+          <div class="config-row">
+            <span class="config-key">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              Batch size
+            </span>
+            <span class="config-val" id="configBatchSize">100</span>
+          </div>
         </div>
         <div class="locked-note">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
@@ -716,15 +742,23 @@
             <div class="value accent mono" id="statRecipients">0</div>
           </div>
           <div class="stat-tile">
+            <div class="label">Batches</div>
+            <div class="value mono" id="statBatches">0</div>
+          </div>
+          <div class="stat-tile">
             <div class="label">Segments / msg</div>
             <div class="value mono" id="statSegments">0</div>
+          </div>
+          <div class="stat-tile">
+            <div class="label">Est. total SMS</div>
+            <div class="value mono" id="statTotalSms">0</div>
           </div>
         </div>
 
         <div class="balance-tile" id="balanceTile" style="display:flex !important; margin-top:14px; padding:18px 20px; border:1px solid rgba(120,145,255,.35); border-radius:16px; background:rgba(92,115,255,.08);">
           <div class="balance-meta">
             <span class="balance-label">SMS Balance</span>
-            <span class="balance-sub">Current  account balance</span>
+            <span class="balance-sub">Current account balance</span>
           </div>
           <span class="balance-value mono" id="balanceValue">—</span>
         </div>
@@ -754,7 +788,7 @@
     </aside>
   </div>
 
-  <p class="footnote">LEAPVE SMS · messages are sent to the configured API endpoint</p>
+  <p class="footnote">LEAPVE SMS · messages are sent to the configured API endpoint in batches</p>
 </div>
 
 <!-- ============ Confirmation Modal ============ -->
@@ -767,6 +801,7 @@
     <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages to sms.leapve.com.</p>
     <div class="modal-summary">
       <div class="modal-row"><span class="k">Recipients</span><span class="v" id="confRecipients">0</span></div>
+      <div class="modal-row"><span class="k">Batches</span><span class="v" id="confBatches">0</span></div>
       <div class="modal-row"><span class="k">Sender</span><span class="v">My Order</span></div>
       <div class="modal-row"><span class="k">Message type</span><span class="v">Plain Text</span></div>
       <div class="modal-row"><span class="k">Est. SMS segments</span><span class="v" id="confSegments">0</span></div>
@@ -791,6 +826,13 @@
   var FIXED = { apiBase: "sms.leapve", sender: "My Order", type: "plain" };
   var SEND_ENDPOINT = "https://sms.leapve.com/api/http/sms/send";
   var BALANCE_ENDPOINT = "https://sms.leapve.com/api/balance";
+
+  /* ================= Batch sending settings (NEW) =================
+     WhySMS docs don't publish a max recipients per request, so numbers are
+     split into batches and sent one after another. */
+  var BATCH_SIZE = 100;          // numbers per request
+  var BATCH_DELAY_MS = 1500;     // pause between batches
+  var REQUEST_TIMEOUT_MS = 60000; // per-batch timeout (was 8s — main cause of false errors)
 
   /* ================= Elements ================= */
   var el = {
@@ -837,6 +879,8 @@
 
     statRecipients: document.getElementById('statRecipients'),
     statSegments: document.getElementById('statSegments'),
+    statBatches: document.getElementById('statBatches'),
+    statTotalSms: document.getElementById('statTotalSms'),
     balanceTile: document.getElementById('balanceTile'),
     balanceValue: document.getElementById('balanceValue'),
     bubbleText: document.getElementById('bubbleText'),
@@ -846,6 +890,7 @@
     demoToggle: document.getElementById('demoToggle'),
     demoBadge: document.getElementById('demoBadge'),
     configApiEndpoint: document.getElementById('configApiEndpoint'),
+    configBatchSize: document.getElementById('configBatchSize'),
     envEndpointHost: document.getElementById('envEndpointHost'),
     checkBalanceBtn: document.getElementById('checkBalanceBtn'),
     topBalanceValue: document.getElementById('topBalanceValue'),
@@ -853,6 +898,7 @@
 
     confirmOverlay: document.getElementById('confirmOverlay'),
     confRecipients: document.getElementById('confRecipients'),
+    confBatches: document.getElementById('confBatches'),
     confSegments: document.getElementById('confSegments'),
     modalSub: document.getElementById('modalSub'),
     modalCancel: document.getElementById('modalCancel'),
@@ -863,17 +909,19 @@
 
   /* ================= State ================= */
   var state = {
-    mode: 'manual',           // 'manual' | 'csv'
-    csvRows: null,            // raw parsed rows (array of arrays)
-    csvHeader: null,          // header row or null
-    csvColumns: [],           // candidate column info [{index,label}]
-    csvSelectedColumn: null,  // index chosen
+    mode: 'manual',
+    csvRows: null,
+    csvHeader: null,
+    csvColumns: [],
+    csvSelectedColumn: null,
     csvFile: null,
-    recipients: [],           // [{raw, digits, valid, dup}]
-    demoMode: false
+    recipients: [],
+    demoMode: false,
+    sending: false,
+    failedNumbers: []
   };
 
-  /* ================= Icons for toasts ================= */
+  /* ================= Icons ================= */
   var ICONS = {
     success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
     error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
@@ -902,24 +950,29 @@
     }
   }
 
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
   /* ================= Phone validation ================= */
   function normalizeDigits(raw){
     var trimmed = (raw || '').trim();
-    var hasPlus = trimmed.charAt(0) === '+';
     var digits = trimmed.replace(/[^\d]/g, '');
-    return { display: trimmed, digits: digits, e164: (hasPlus ? '+' : '') + digits };
+    return { display: trimmed, digits: digits };
   }
   function isValidPhone(digits){
     return /^[1-9]\d{7,14}$/.test(digits);
   }
 
   function parseManualEntries(text){
-    var parts = (text || '').split(',');
+    // Commas, semicolons, or new lines all work as separators
+    var parts = (text || '').split(/[,;\n\r]+/);
     var out = [];
     for (var i = 0; i < parts.length; i++){
       var t = parts[i].trim();
-      if (t === '') continue;
-      out.push(t);
+      if (t !== '') out.push(t);
     }
     return out;
   }
@@ -929,7 +982,7 @@
     var list = [];
     for (var i = 0; i < rawList.length; i++){
       var raw = rawList[i];
-      if (raw.trim() === '') continue; // remove truly empty values silently
+      if (raw.trim() === '') continue;
       var norm = normalizeDigits(raw);
       var valid = isValidPhone(norm.digits);
       var dup = valid && !!seen[norm.digits];
@@ -941,21 +994,18 @@
 
   function recomputeRecipients(){
     if (state.mode === 'manual'){
-      var entries = parseManualEntries(el.manualNumbers.value);
-      state.recipients = buildRecipients(entries);
-    } else {
-      if (state.csvRows && state.csvSelectedColumn !== null){
-        var colIdx = state.csvSelectedColumn;
-        var startRow = state.csvHeader ? 1 : 0;
-        var rawList = [];
-        for (var r = startRow; r < state.csvRows.length; r++){
-          var row = state.csvRows[r];
-          if (row && row[colIdx] !== undefined) rawList.push(row[colIdx]);
-        }
-        state.recipients = buildRecipients(rawList);
-      } else {
-        state.recipients = [];
+      state.recipients = buildRecipients(parseManualEntries(el.manualNumbers.value));
+    } else if (state.csvRows && state.csvSelectedColumn !== null){
+      var colIdx = state.csvSelectedColumn;
+      var startRow = state.csvHeader ? 1 : 0;
+      var rawList = [];
+      for (var r = startRow; r < state.csvRows.length; r++){
+        var row = state.csvRows[r];
+        if (row && row[colIdx] !== undefined) rawList.push(row[colIdx]);
       }
+      state.recipients = buildRecipients(rawList);
+    } else {
+      state.recipients = [];
     }
     renderRecipients();
     renderSummary();
@@ -970,12 +1020,8 @@
       else if (list[i].dup) dupCount++;
     }
 
-    if (validCount > 0){
-      el.recipientCountChip.classList.remove('zero');
-    } else {
-      el.recipientCountChip.classList.add('zero');
-    }
-    el.recipientCountText.textContent = validCount + ' valid recipient' + (validCount === 1 ? '' : 's') + ' detected';
+    el.recipientCountChip.classList.toggle('zero', validCount === 0);
+    el.recipientCountText.textContent = validCount.toLocaleString() + ' valid recipient' + (validCount === 1 ? '' : 's') + ' detected';
 
     if (invalidCount > 0 || dupCount > 0){
       var msgs = [];
@@ -1009,26 +1055,23 @@
     }
     el.previewTbody.innerHTML = rowsHtml;
     if (list.length > LIMIT){
+      var more = list.length - LIMIT;
       el.previewMore.style.display = 'block';
-      el.previewMore.textContent = '+ ' + (list.length - LIMIT) + ' more recipient' + ((list.length - LIMIT) === 1 ? '' : 's') + ' not shown';
+      el.previewMore.textContent = '+ ' + more.toLocaleString() + ' more recipient' + (more === 1 ? '' : 's') + ' not shown';
     } else {
       el.previewMore.style.display = 'none';
     }
   }
 
-  function getValidUniqueCount(){
-    var n = 0;
+  function getValidUniqueNumbers(){
+    var out = [];
     for (var i = 0; i < state.recipients.length; i++){
-      if (state.recipients[i].valid && !state.recipients[i].dup) n++;
+      var r = state.recipients[i];
+      if (r.valid && !r.dup) out.push(r.e164);
     }
-    return n;
+    return out;
   }
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, function(c){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
-    });
-  }
+  function getValidUniqueCount(){ return getValidUniqueNumbers().length; }
 
   /* ================= Tabs ================= */
   function setMode(mode){
@@ -1062,7 +1105,7 @@
   var PHONE_HEADER_HINTS = ['phone','mobile','number','msisdn','recipient','contact','tel','cell'];
 
   function parseCsvText(text){
-    // Lightweight CSV parser: handles quoted fields with embedded commas/quotes.
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip Excel BOM
     var rows = [];
     var row = [];
     var field = '';
@@ -1076,7 +1119,7 @@
         } else field += c;
       } else {
         if (c === '"') inQuotes = true;
-        else if (c === ','){ row.push(field); field = ''; }
+        else if (c === ',' || c === ';'){ row.push(field); field = ''; }
         else if (c === '\n' || c === '\r'){
           if (c === '\r' && text[i+1] === '\n') i++;
           row.push(field); field = '';
@@ -1100,7 +1143,6 @@
     var maxCols = 0;
     for (var i = 0; i < rows.length; i++) maxCols = Math.max(maxCols, rows[i].length);
 
-    // does first row look like a header (non-numeric-ish cells)?
     var firstLooksHeader = first.every(function(v){ return !looksLikePhone(v) && isNaN(Number(v.replace(/[^\d.-]/g,''))); }) ||
                             first.some(function(v){ return PHONE_HEADER_HINTS.some(function(h){ return v.toLowerCase().indexOf(h) !== -1; }); });
 
@@ -1139,7 +1181,7 @@
 
   function handleCsvFile(file){
     el.csvError.style.display = 'none';
-    if (!file){ return; }
+    if (!file) return;
     var nameOk = /\.csv$/i.test(file.name) || file.type === 'text/csv' || file.type === 'application/vnd.ms-excel' || file.type === '';
     if (!nameOk){
       showCsvError('That file doesn’t look like a CSV. Please upload a .csv file.');
@@ -1147,15 +1189,14 @@
       return;
     }
     if (file.size > 5 * 1024 * 1024){
-      showCsvError('File is too large. Maximum size is 5 MB.');
-      toast('error', 'File too large', 'CSV files must be 5 MB or smaller.');
+      showCsvError('File is too large. Maximum size is 5 MB.');
+      toast('error', 'File too large', 'CSV files must be 5 MB or smaller.');
       return;
     }
     var reader = new FileReader();
     reader.onload = function(e){
       try {
-        var text = String(e.target.result || '');
-        var rows = parseCsvText(text);
+        var rows = parseCsvText(String(e.target.result || ''));
         if (!rows.length){
           showCsvError('This CSV file appears to be empty.');
           toast('error', 'Empty CSV', 'No rows were found in that file.');
@@ -1169,7 +1210,7 @@
 
         var dataRowCount = rows.length - (detected.header ? 1 : 0);
         el.fileChipName.textContent = file.name;
-        el.fileChipMeta.textContent = formatBytes(file.size) + ' · ' + dataRowCount + ' row' + (dataRowCount === 1 ? '' : 's') + ' detected';
+        el.fileChipMeta.textContent = formatBytes(file.size) + ' · ' + dataRowCount.toLocaleString() + ' row' + (dataRowCount === 1 ? '' : 's') + ' detected';
         el.fileChip.style.display = 'block';
         el.dropzoneWrap.style.display = 'none';
 
@@ -1177,14 +1218,13 @@
         if (detected.columns.length > 1 && strongCandidates.length !== 1){
           populateColumnPicker(detected.columns);
           el.columnPicker.style.display = 'flex';
-          state.csvSelectedColumn = detected.columns[0].index;
         } else {
           el.columnPicker.style.display = 'none';
-          state.csvSelectedColumn = detected.columns.length ? detected.columns[0].index : 0;
         }
+        state.csvSelectedColumn = detected.columns.length ? detected.columns[0].index : 0;
 
         recomputeRecipients();
-        toast('success', 'CSV loaded', dataRowCount + ' row' + (dataRowCount === 1 ? '' : 's') + ' read from ' + file.name + '.');
+        toast('success', 'CSV loaded', dataRowCount.toLocaleString() + ' rows read from ' + file.name + '.');
       } catch (err){
         showCsvError('Couldn’t read this CSV file. Please check its formatting and try again.');
         toast('error', 'CSV parsing error', 'The file could not be parsed.');
@@ -1283,18 +1323,17 @@
     el.segmentCount.textContent = info.segments;
     el.segmentLabel.textContent = 'segment' + (info.segments === 1 ? '' : 's');
     el.encodingBadge.textContent = info.encoding;
-    if (msg.trim() !== ''){
-      el.messageInput.parentElement && el.messageError.style.removeProperty('display');
-      el.messageError.style.display = 'none';
-    }
+    if (msg.trim() !== '') el.messageError.style.display = 'none';
     return info;
   }
 
   function renderSummary(){
     var validCount = getValidUniqueCount();
     var info = computeSmsInfo(el.messageInput.value);
-    el.statRecipients.textContent = validCount;
+    el.statRecipients.textContent = validCount.toLocaleString();
     el.statSegments.textContent = info.segments;
+    el.statBatches.textContent = Math.ceil(validCount / BATCH_SIZE);
+    el.statTotalSms.textContent = (validCount * info.segments).toLocaleString();
 
     if (el.messageInput.value.trim() === ''){
       el.bubbleText.textContent = 'Your message will appear here…';
@@ -1325,20 +1364,19 @@
 
     if (!token){
       el.tokenField.classList.add('has-error');
-      errors.push({ field: 'token', msg: 'API token is required to send messages.' });
+      errors.push({ field: 'token' });
     }
-    if (validCount === 0){
-      errors.push({ field: 'recipients', msg: 'Add at least one valid recipient.' });
-    }
+    if (validCount === 0) errors.push({ field: 'recipients' });
     if (!message.trim()){
       el.messageError.style.display = 'flex';
-      errors.push({ field: 'message', msg: 'Message cannot be empty.' });
+      errors.push({ field: 'message' });
     }
     return errors;
   }
 
   /* ================= Send flow ================= */
   el.sendBtn.addEventListener('click', function(){
+    if (state.sending) return;
     var errors = validateForSend();
     if (errors.length){
       var first = errors[0];
@@ -1348,7 +1386,9 @@
       return;
     }
     var info = computeSmsInfo(el.messageInput.value);
-    el.confRecipients.textContent = getValidUniqueCount();
+    var count = getValidUniqueCount();
+    el.confRecipients.textContent = count.toLocaleString();
+    el.confBatches.textContent = Math.ceil(count / BATCH_SIZE) + ' × ' + BATCH_SIZE;
     el.confSegments.textContent = info.segments;
     el.confirmOverlay.classList.add('open');
   });
@@ -1358,191 +1398,100 @@
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && el.confirmOverlay.classList.contains('open')) closeModal(); });
   function closeModal(){ el.confirmOverlay.classList.remove('open'); }
 
-  el.modalConfirm.addEventListener('click', function(){
-    performSend();
+  el.modalConfirm.addEventListener('click', function(){ performSend(); });
+
+  // Warn before leaving the page in the middle of a batch run
+  window.addEventListener('beforeunload', function(e){
+    if (state.sending){ e.preventDefault(); e.returnValue = ''; }
   });
 
-  /* ================= Demo mode toggle =================
-     OFF by default: a real POST is attempted against SEND_ENDPOINT, and a
-     failed/unreachable request is reported as a genuine error — it is never
-     silently treated as a success. ON: no network request is made at all;
-     the send is simulated so the UI/UX can be demonstrated safely, and every
-     visible state (badge, banner, toast, modal copy) says "demo" in words,
-     never green "success" styling, so a simulated run can never be mistaken
-     for a delivered message. */
+  /* ================= Demo mode toggle ================= */
   el.demoToggle.addEventListener('change', function(){
     state.demoMode = el.demoToggle.checked;
     el.demoBadge.classList.toggle('on', state.demoMode);
     el.modalSub.textContent = state.demoMode
       ? 'Demo mode is on — this will simulate a send and will NOT contact sms.leapve.com.'
       : 'Double-check the details below — this will send real messages to sms.leapve.com.';
-    if (state.demoMode){
-      toast('warning', 'Demo mode enabled', 'Sends will be simulated — no real messages will go out.');
-    }
+    if (state.demoMode) toast('warning', 'Demo mode enabled', 'Sends will be simulated — no real messages will go out.');
   });
 
   function setSending(isSending){
+    state.sending = isSending;
     el.sendBtn.disabled = isSending;
     el.modalConfirm.disabled = isSending;
     el.sendBtn.classList.toggle('loading', isSending);
     el.modalConfirm.classList.toggle('loading', isSending);
   }
 
+  /* ================= Balance helpers ================= */
   function extractBalance(raw){
     var data = raw;
-
     if (typeof raw === 'string'){
-      try {
-        data = JSON.parse(raw);
-      } catch(e) {
+      try { data = JSON.parse(raw); }
+      catch(e){
         var text = raw.trim();
-
-        var m = text.match(
-          /(?:balance|credit|credits|remaining(?:_balance)?|available(?:_balance)?)\s*[:=]?\s*["']?([\d,.]+\s*(?:EGP|USD|EUR|GBP)?)/i
-        );
-
+        var m = text.match(/(?:balance|credit|credits|remaining(?:_balance)?|available(?:_balance)?)\s*[:=]?\s*["']?([\d,.]+\s*(?:EGP|USD|EUR|GBP)?)/i);
         if (m) return m[1].trim();
-
         var direct = text.match(/([\d,.]+\s*(?:EGP|USD|EUR|GBP))/i);
         return direct ? direct[1].trim() : null;
       }
     }
-
     if (data == null) return null;
-
     if (typeof data === 'number') return data;
-
     if (typeof data === 'string'){
       var s = data.trim();
-
       if (s === '') return null;
-
-      var n = Number(s.replace(/,/g,'').trim());
-
+      var n = Number(s.replace(/,/g,''));
       if (!isNaN(n)) return n;
-
       var withCurrency = s.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
-
-      if (withCurrency){
-        return withCurrency[1].replace(/,/g,'') + ' ' + withCurrency[2].toUpperCase();
-      }
-
+      if (withCurrency) return withCurrency[1].replace(/,/g,'') + ' ' + withCurrency[2].toUpperCase();
       return null;
     }
-
     if (typeof data === 'object'){
-      /*  balance response:
-         data.remaining_balance = "4,789 EGP"
-      */
-      if (
-        data.remaining_balance !== undefined &&
-        data.remaining_balance !== null &&
-        data.remaining_balance !== ''
-      ){
+      if (data.remaining_balance !== undefined && data.remaining_balance !== null && data.remaining_balance !== ''){
         return String(data.remaining_balance).trim();
       }
-
-      var keys = [
-        'balance',
-        'credit',
-        'credits',
-        'sms_balance',
-        'smsBalance',
-        'remaining',
-        'remaining_balance',
-        'available_balance',
-        'availableBalance',
-        'wallet_balance',
-        'walletBalance',
-        'account_balance',
-        'accountBalance',
-        'current_balance',
-        'currentBalance'
-      ];
-
-      for (var i=0;i<keys.length;i++){
+      var keys = ['balance','credit','credits','sms_balance','smsBalance','remaining','remaining_balance','available_balance','availableBalance','wallet_balance','walletBalance','account_balance','accountBalance','current_balance','currentBalance'];
+      for (var i = 0; i < keys.length; i++){
         if (data[keys[i]] !== undefined && data[keys[i]] !== null){
-          var v = data[keys[i]];
-          var nested = extractBalance(v);
+          var nested = extractBalance(data[keys[i]]);
           if (nested !== null) return nested;
         }
       }
-
-      if (data.data !== undefined){
-        var d = extractBalance(data.data);
-        if (d !== null) return d;
-      }
-
-      if (data.result !== undefined){
-        var r = extractBalance(data.result);
-        if (r !== null) return r;
-      }
+      if (data.data !== undefined){ var d = extractBalance(data.data); if (d !== null) return d; }
+      if (data.result !== undefined){ var r = extractBalance(data.result); if (r !== null) return r; }
     }
-
     return null;
   }
 
   function formatBalance(balance){
-    if (balance === null || balance === undefined || balance === '') {
-      return null;
-    }
-
-    if (typeof balance === 'number' && !isNaN(balance)){
-      return balance.toLocaleString();
-    }
-
+    if (balance === null || balance === undefined || balance === '') return null;
+    if (typeof balance === 'number' && !isNaN(balance)) return balance.toLocaleString();
     var value = String(balance).trim();
-
     var match = value.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
-
     if (match){
       var amount = Number(match[1].replace(/,/g,''));
-
-      if (!isNaN(amount)){
-        return amount.toLocaleString() + ' ' + match[2].toUpperCase();
-      }
+      if (!isNaN(amount)) return amount.toLocaleString() + ' ' + match[2].toUpperCase();
     }
-
     var numeric = Number(value.replace(/,/g,''));
-
-    if (!isNaN(numeric)){
-      return numeric.toLocaleString();
-    }
-
+    if (!isNaN(numeric)) return numeric.toLocaleString();
     return value;
   }
 
   function updateBalanceFromResponse(json){
     if (!json) return;
-
     var balance = json.balance;
-
-    if (
-      balance === null ||
-      balance === undefined ||
-      balance === ""
-    ){
-      balance = extractBalance(json.balance_response);
-    }
-
-    if (
-      balance === null ||
-      balance === undefined ||
-      balance === ""
-    ){
-      return;
-    }
-
-    var formattedBalance = formatBalance(balance);
-
-    el.balanceValue.textContent = formattedBalance;
+    if (balance === null || balance === undefined || balance === '') balance = extractBalance(json.balance_response);
+    if (balance === null || balance === undefined || balance === '') return;
+    var formatted = formatBalance(balance);
+    el.balanceValue.textContent = formatted;
+    el.topBalanceValue.textContent = formatted;
     el.balanceTile.classList.add('show');
   }
 
   /* ================= Balance checker ================= */
   function checkBalance(){
     var apiToken = el.apiToken.value.trim();
-
     if (!apiToken){
       el.tokenField.classList.add('has-error');
       el.topBalanceStatus.textContent = 'API token is required';
@@ -1550,7 +1499,6 @@
       el.apiToken.focus();
       return;
     }
-
     el.tokenField.classList.remove('has-error');
     el.checkBalanceBtn.disabled = true;
     el.checkBalanceBtn.textContent = 'Checking...';
@@ -1559,10 +1507,7 @@
 
     fetch(BALANCE_ENDPOINT, {
       method: 'GET',
-      headers: {
-        'Authorization': 'Bearer ' + apiToken,
-        'Accept': 'application/json'
-      }
+      headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' }
     }).then(function(res){
       return res.text().then(function(raw){
         var json = null;
@@ -1571,220 +1516,234 @@
       });
     }).then(function(result){
       var json = result.json;
-
-      if (!result.ok || !json || json.success !== true){
-        throw new Error('Unable to retrieve the current SMS balance.');
-      }
-
+      if (!result.ok || !json || json.success !== true) throw new Error('Unable to retrieve the current SMS balance.');
       var balance = json.balance;
-
-      if (balance === null || balance === undefined || balance === ''){
-        balance = extractBalance(json.balance_response);
-      }
-
-      if (balance === null || balance === undefined || balance === ''){
-        throw new Error('Unable to retrieve the current balance.');
-      }
-
-      var formattedBalance = formatBalance(balance);
-
-      el.topBalanceValue.textContent = formattedBalance;
+      if (balance === null || balance === undefined || balance === '') balance = extractBalance(json.balance_response);
+      if (balance === null || balance === undefined || balance === '') throw new Error('Unable to retrieve the current balance.');
+      var formatted = formatBalance(balance);
+      el.topBalanceValue.textContent = formatted;
       el.topBalanceStatus.textContent = 'Current available balance';
       el.topBalanceStatus.className = 'balance-checker-status success';
-
-      el.balanceValue.textContent = formattedBalance;
+      el.balanceValue.textContent = formatted;
       el.balanceTile.classList.add('show');
-
-      toast('success', 'Balance updated', 'Current SMS balance: ' + formattedBalance);
+      toast('success', 'Balance updated', 'Current SMS balance: ' + formatted);
     }).catch(function(err){
-      el.topBalanceStatus.textContent = err && err.message ? err.message : 'Balance request failed';
+      var m = err && err.message ? err.message : 'Balance request failed';
+      el.topBalanceStatus.textContent = m;
       el.topBalanceStatus.className = 'balance-checker-status error';
-      toast('error', 'Balance check failed', err && err.message ? err.message : 'Unable to retrieve balance.');
+      toast('error', 'Balance check failed', m);
     }).finally(function(){
       el.checkBalanceBtn.disabled = false;
       el.checkBalanceBtn.textContent = 'Check balance';
     });
   }
-
   el.checkBalanceBtn.addEventListener('click', checkBalance);
 
-  function performSend(){
-    setSending(true);
-    el.resultBanner.className = 'result-banner';
+  /* ================= Interpreting the gateway reply =================
+     Backend wraps WhySMS's reply as a JSON string in `whysms_response`.
+     Per WhySMS docs: success = {"status":"success","data":...},
+     error = {"status":"error","message":"..."}. */
+  function interpretApiResult(json, httpStatus, httpOk){
+    if (json && typeof json === 'object'){
+      var inner = json;
+      var wrapped = false;
 
-    var uniqueValid = [];
-    for (var i = 0; i < state.recipients.length; i++){
-      var r = state.recipients[i];
-      if (r.valid && !r.dup) uniqueValid.push(r.e164);
+      if (typeof json.whysms_response === 'string' && json.whysms_response.trim() !== ''){
+        try { inner = JSON.parse(json.whysms_response); wrapped = true; }
+        catch (e){
+          var low = json.whysms_response.toLowerCase();
+          var bad = /error|fail|invalid|reject|unauthor|insufficient/.test(low);
+          return { ok: !bad, message: json.whysms_response };
+        }
+      } else if (json.whysms_response && typeof json.whysms_response === 'object'){
+        inner = json.whysms_response; wrapped = true;
+      }
+
+      if (!inner || typeof inner !== 'object') return { ok: !!httpOk, message: null };
+
+      var msg = inner.message || inner.msg || inner.error || inner.errors || null;
+      if (msg && typeof msg !== 'string') msg = JSON.stringify(msg);
+
+      if (typeof inner.status === 'string'){
+        var s = inner.status.toLowerCase();
+        if (['success','ok','sent','done','completed','true'].indexOf(s) !== -1) return { ok: true, message: msg };
+        if (['error','failed','fail','failure','invalid','rejected','false'].indexOf(s) !== -1) return { ok: false, message: msg };
+      }
+      if (typeof inner.status === 'boolean') return { ok: inner.status, message: msg };
+      if (inner.error || inner.errors) return { ok: false, message: msg || 'The gateway reported an error.' };
+      if (inner.data) return { ok: true, message: msg };
+      if (!wrapped){
+        if (typeof inner.success === 'boolean') return { ok: inner.success, message: msg };
+        if (typeof inner.ok === 'boolean') return { ok: inner.ok, message: msg };
+      }
+      return { ok: !!httpOk, message: msg };
     }
+    if (json === null) return { ok: false, message: 'Empty or non-JSON response (HTTP ' + httpStatus + ').' };
+    return { ok: !!httpOk, message: null };
+  }
+
+  /* ================= One batch =================
+     Returns { status: 'ok' | 'fail' | 'unknown', message }.
+     'unknown' = the request left the browser but we couldn't read a reply
+     (timeout, or CORS/network blocked reading it). The server may well have
+     sent the messages — so it is NOT treated as a failure and NOT auto-retried. */
+  function sendBatch(numbers){
     var payload = {
       api_token: el.apiToken.value.trim(),
-      recipient: uniqueValid.join(','),
+      recipient: numbers.join(','),
       sender_id: FIXED.sender,
       type: FIXED.type,
       message: el.messageInput.value
     };
-    var count = uniqueValid.length;
-
-    if (state.demoMode){
-      // No network call at all — purely a UI simulation, clearly labeled.
-      setTimeout(function(){ onSendDemo(count); }, 900);
-      return;
-    }
-
     var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var timeout = setTimeout(function(){ controller && controller.abort(); }, 8000);
+    var timer = setTimeout(function(){ controller && controller.abort(); }, REQUEST_TIMEOUT_MS);
 
-    fetch(SEND_ENDPOINT, {
+    return fetch(SEND_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined
     }).then(function(res){
-      clearTimeout(timeout);
       return res.text().then(function(raw){
+        clearTimeout(timer);
         var json = null;
         try { json = raw ? JSON.parse(raw) : null; } catch (e) { json = null; }
-        return { httpOk: res.ok, status: res.status, json: json, raw: raw };
+        updateBalanceFromResponse(json);
+        var v = interpretApiResult(json, res.status, res.ok);
+        if (window.console) console.log('[LEAPVE] batch reply', res.status, raw);
+        return { status: v.ok ? 'ok' : 'fail', message: v.message };
       });
-    }).then(function(result){
-      updateBalanceFromResponse(result.json);
-      // Many SMS gateways answer with HTTP 200 even when the send itself
-      // failed (bad token, bad sender, etc.) and put the real result inside
-      // the JSON body instead. So a 200 status alone never means success
-      // here — the body is inspected for the gateway's own success/failure
-      // signal, and only a body that actually confirms success counts.
-      var verdict = interpretApiResult(result.json, result.status, result.httpOk);
-      if (!verdict.ok){
-        var err = new Error(verdict.message || ('HTTP ' + result.status));
-        err.isApiFailure = true;
-        throw err;
-      }
-      onSendSuccess(count);
     }).catch(function(err){
-      clearTimeout(timeout);
-      onSendError(count, err);
+      clearTimeout(timer);
+      if (err && err.name === 'AbortError'){
+        return { status: 'unknown', message: 'Timed out after ' + (REQUEST_TIMEOUT_MS / 1000) + 's waiting for a reply.' };
+      }
+      if (err && err.name === 'TypeError'){
+        return { status: 'unknown', message: 'The reply could not be read (network/CORS).' };
+      }
+      return { status: 'fail', message: (err && err.message) || 'Request failed.' };
     });
   }
 
-  /* Reads the gateway's own success/failure signal out of the JSON body
-     rather than trusting the HTTP status code alone.
-
-     This backend wraps the real gateway reply as a JSON-ENCODED STRING in
-     `whysms_response`. The outer `success` / `whysms_status` fields only
-     mean "the proxy call itself completed" — confirmed against a live
-     response, they stay `success: true` / `whysms_status: 200` even when
-     the gateway rejected the send outright (e.g. bad token):
-       { "success": true, "whysms_status": 200,
-         "whysms_response": "{\"status\":\"error\",\"message\":\"...\"}" }
-     So the outer fields are never trusted on their own — `whysms_response`
-     is parsed as its own JSON document and ITS `status`/`message` is the
-     real verdict. A plain (non-wrapped) response shape is still supported
-     as a fallback for other endpoints. */
-  function interpretApiResult(json, httpStatus, httpOk){
-    if (json && typeof json === 'object'){
-
-      if (typeof json.whysms_response === 'string' && json.whysms_response.trim() !== ''){
-        var inner = null;
-        try { inner = JSON.parse(json.whysms_response); } catch (e) { inner = null; }
-
-        if (inner && typeof inner === 'object'){
-          var innerMsg = inner.message || inner.msg || inner.error || inner.errors || null;
-          if (innerMsg && typeof innerMsg !== 'string') innerMsg = JSON.stringify(innerMsg);
-
-          if (typeof inner.status === 'string'){
-            var innerStatus = inner.status.toLowerCase();
-            if (['success','ok','sent','done','completed','true'].indexOf(innerStatus) !== -1) return { ok: true, message: innerMsg };
-            if (['error','failed','fail','failure','invalid','rejected','false'].indexOf(innerStatus) !== -1) return { ok: false, message: innerMsg };
-          }
-          if (typeof inner.status === 'boolean') return { ok: inner.status, message: innerMsg };
-          if (typeof inner.success === 'boolean') return { ok: inner.success, message: innerMsg };
-          if (inner.error || inner.errors) return { ok: false, message: innerMsg || 'The gateway reported an error.' };
-          // Parsed fine but no field we recognize — don't guess success.
-          return { ok: false, message: innerMsg || json.whysms_response };
-        }
-
-        // Not parsable as JSON — surface the raw text rather than assume ok.
-        var rawLower = json.whysms_response.toLowerCase();
-        var looksBad = rawLower.indexOf('error') !== -1 || rawLower.indexOf('fail') !== -1 ||
-                        rawLower.indexOf('invalid') !== -1 || rawLower.indexOf('reject') !== -1 ||
-                        rawLower.indexOf('unauthor') !== -1;
-        return { ok: !looksBad, message: json.whysms_response };
-      }
-
-      // Fallback: plain (non-wrapped) response shapes.
-      var msg = json.message || json.msg || json.error || json.errors || null;
-      if (msg && typeof msg !== 'string') msg = JSON.stringify(msg);
-
-      if (typeof json.success === 'boolean') return { ok: json.success, message: msg };
-      if (typeof json.status === 'boolean') return { ok: json.status, message: msg };
-      if (typeof json.ok === 'boolean') return { ok: json.ok, message: msg };
-      if (typeof json.status === 'string'){
-        var s = json.status.toLowerCase();
-        if (['success','ok','sent','done','completed'].indexOf(s) !== -1) return { ok: true, message: msg };
-        if (['error','failed','fail','failure','invalid','rejected'].indexOf(s) !== -1) return { ok: false, message: msg };
-      }
-      if (json.error || json.errors){
-        return { ok: false, message: msg || 'The API reported an error.' };
-      }
-    }
-    // No recognizable body signal — fall back to the HTTP status, but an
-    // unparsable/empty body is treated as a failure rather than assumed ok.
-    if (json === null) return { ok: false, message: 'The API returned an unexpected (empty or non-JSON) response.' };
-    return { ok: !!httpOk, message: null };
+  /* ================= Batch runner ================= */
+  function showProgress(done, total, res, totalNumbers){
+    var pct = Math.round(((done - 1) / total) * 100);
+    el.resultBanner.className = 'result-banner show info';
+    el.resultBanner.innerHTML = ICONS.info +
+      '<div class="rb-body"><b class="title">Sending… batch ' + done + ' of ' + total + '</b>' +
+      'Please keep this page open until it finishes.' +
+      '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="batch-stats"><span>Confirmed: ' + res.sent.toLocaleString() + ' / ' + totalNumbers.toLocaleString() + '</span>' +
+      (res.unknown.length ? '<span>Unknown: ' + res.unknown.length.toLocaleString() + '</span>' : '') +
+      (res.failed.length ? '<span>Failed: ' + res.failed.length.toLocaleString() + '</span>' : '') +
+      '</div></div>';
   }
 
-  function onSendSuccess(count){
-    setSending(false);
+  function performSend(retryNumbers){
+    if (state.sending) return;
+    var numbers = Array.isArray(retryNumbers) ? retryNumbers : getValidUniqueNumbers();
+    if (!numbers.length) return;
+
     closeModal();
-    el.resultBanner.classList.add('show', 'success');
-    el.resultBanner.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
-      '<div><b>Sent successfully</b>SMS sent successfully to ' + count + ' recipient' + (count === 1 ? '' : 's') + '.</div>';
-    toast('success', 'SMS sent', 'SMS sent successfully to ' + count + ' recipient' + (count === 1 ? '' : 's') + '.');
+    setSending(true);
+
+    if (state.demoMode){
+      setTimeout(function(){ onSendDemo(numbers.length); }, 900);
+      return;
+    }
+
+    var batches = [];
+    for (var i = 0; i < numbers.length; i += BATCH_SIZE) batches.push(numbers.slice(i, i + BATCH_SIZE));
+
+    var res = { sent: 0, failed: [], unknown: [], errors: [], unknownReasons: [] };
+    var idx = 0;
+
+    function next(){
+      if (idx >= batches.length){ finishSend(res, numbers.length, batches.length); return; }
+      showProgress(idx + 1, batches.length, res, numbers.length);
+      var batch = batches[idx];
+      sendBatch(batch).then(function(r){
+        if (r.status === 'ok'){
+          res.sent += batch.length;
+        } else if (r.status === 'unknown'){
+          res.unknown = res.unknown.concat(batch);
+          if (r.message) res.unknownReasons.push(r.message);
+        } else {
+          res.failed = res.failed.concat(batch);
+          if (r.message) res.errors.push(r.message);
+        }
+        idx++;
+        if (idx < batches.length) setTimeout(next, BATCH_DELAY_MS);
+        else next();
+      });
+    }
+    next();
+  }
+
+  function finishSend(res, total, batchCount){
+    setSending(false);
+    state.failedNumbers = res.failed.slice();
+
+    var kind, title, body, icon;
+    var stats = '<div class="batch-stats"><span>Batches: ' + batchCount + '</span>' +
+      '<span>Sent: ' + res.sent.toLocaleString() + '</span>' +
+      (res.unknown.length ? '<span>Unknown: ' + res.unknown.length.toLocaleString() + '</span>' : '') +
+      (res.failed.length ? '<span>Failed: ' + res.failed.length.toLocaleString() + '</span>' : '') + '</div>';
+
+    if (!res.failed.length && !res.unknown.length){
+      kind = 'success'; icon = ICONS.success;
+      title = 'Sent successfully';
+      body = 'SMS sent to ' + res.sent.toLocaleString() + ' recipient' + (res.sent === 1 ? '' : 's') + '.';
+      toast('success', 'SMS sent', 'Sent to ' + res.sent.toLocaleString() + ' recipients.');
+    } else if (!res.failed.length){
+      kind = 'warning'; icon = ICONS.warning;
+      title = 'Probably sent — reply not confirmed';
+      body = res.unknown.length.toLocaleString() + ' number(s) got no readable reply (' + escapeHtml(res.unknownReasons[0] || 'timeout') + '). ' +
+             'The messages most likely went out. <b>Don’t resend them</b> until you check the delivery report in WhySMS.';
+      toast('warning', 'Status not confirmed', 'Check the WhySMS report before resending.');
+    } else {
+      kind = 'error'; icon = ICONS.error;
+      title = res.sent ? 'Partially sent — some batches failed' : 'Unable to send SMS';
+      var uniqueErrors = res.errors.filter(function(m, i, a){ return a.indexOf(m) === i; }).slice(0, 3);
+      body = (uniqueErrors.length ? 'Reason: ' + uniqueErrors.map(escapeHtml).join(' · ') : 'The API rejected the request.') +
+             (res.unknown.length ? '<br>' + res.unknown.length.toLocaleString() + ' number(s) have unknown status — check the report before resending those.' : '') +
+             '<br><button type="button" class="retry-btn" id="retryFailedBtn">Retry the ' + res.failed.length.toLocaleString() + ' failed number(s) only</button>';
+      toast('error', res.sent ? 'Some batches failed' : 'Unable to send SMS', uniqueErrors[0] || 'Check the details and try again.');
+    }
+
+    el.resultBanner.className = 'result-banner show ' + kind;
+    el.resultBanner.innerHTML = icon + '<div class="rb-body"><b class="title">' + title + '</b>' + body + stats + '</div>';
+
+    var retryBtn = document.getElementById('retryFailedBtn');
+    if (retryBtn){
+      retryBtn.addEventListener('click', function(){
+        if (!state.failedNumbers.length) return;
+        if (window.confirm('Resend to ' + state.failedNumbers.length + ' failed number(s)?')){
+          performSend(state.failedNumbers.slice());
+        }
+      });
+    }
   }
 
   function onSendDemo(count){
     setSending(false);
-    closeModal();
-    el.resultBanner.classList.add('show', 'warning');
-    el.resultBanner.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
-      '<div><b>Demo send complete — nothing was delivered</b>Simulated a send to ' + count + ' recipient' + (count === 1 ? '' : 's') + '. Turn off Demo mode to send for real.</div>';
+    el.resultBanner.className = 'result-banner show warning';
+    el.resultBanner.innerHTML = ICONS.warning +
+      '<div class="rb-body"><b class="title">Demo send complete — nothing was delivered</b>Simulated a send to ' + count.toLocaleString() +
+      ' recipient' + (count === 1 ? '' : 's') + ' in ' + Math.ceil(count / BATCH_SIZE) + ' batch(es). Turn off Demo mode to send for real.</div>';
     toast('warning', 'Demo send (not delivered)', 'Simulated only — turn off Demo mode to actually send.');
-  }
-
-  function onSendError(count, err){
-    setSending(false);
-    closeModal();
-    var reason = 'Please check your API token and try again.';
-    var extra = 'If this page can’t reach sms.leapve.com from here (CORS or network restrictions), enable Demo mode to preview the flow, or host this page somewhere that can reach the API.';
-    if (err && err.name === 'AbortError'){
-      reason = 'The request timed out. Check your connection and try again.';
-    } else if (err && err.isApiFailure){
-      // The request reached the API and the API itself reported a failure
-      // (e.g. invalid token) — show its own message instead of the generic
-      // network-trouble copy.
-      reason = err.message || 'The API rejected this request.';
-      extra = 'Double-check your API token, recipients and message, then try again.';
-    }
-    el.resultBanner.classList.add('show', 'error');
-    el.resultBanner.innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>' +
-      '<div><b>Unable to send SMS</b>' + escapeHtml(reason) + ' ' + escapeHtml(extra) + '</div>';
-    toast('error', 'Unable to send SMS', reason);
   }
 
   /* ================= Init ================= */
   el.configApiEndpoint.textContent = SEND_ENDPOINT;
-  try {
-    el.envEndpointHost.textContent = new URL(SEND_ENDPOINT).host;
-  } catch (e) {
-    el.envEndpointHost.textContent = SEND_ENDPOINT;
-  }
+  el.configBatchSize.textContent = BATCH_SIZE + ' numbers';
+  try { el.envEndpointHost.textContent = new URL(SEND_ENDPOINT).host; }
+  catch (e) { el.envEndpointHost.textContent = SEND_ENDPOINT; }
   renderMessageStats();
   renderSummary();
   recomputeRecipients();
 
 })();
 </script>
+</body>
+</html>
