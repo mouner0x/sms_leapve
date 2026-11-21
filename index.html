@@ -515,7 +515,7 @@
         </div>
         <button type="button" class="balance-checker-btn" id="checkBalanceBtn">Check balance</button>
       </div>
-      <span class="env-pill"><span class="env-dot"></span> Endpoint: <span id="envEndpointHost">sms.leapve.com</span></span>
+      <span class="env-pill"><span class="env-dot"></span> Endpoint: <span id="envEndpointHost">bulk.whysms.com</span></span>
     </div>
   </header>
 
@@ -531,7 +531,7 @@
             <div class="step-badge">1</div>
             <div>
               <div class="card-title">API Token</div>
-              <div class="card-desc">Your personal LEAPVE authentication token</div>
+              <div class="card-desc">Your WhySMS API token</div>
             </div>
           </div>
           <span class="card-tag">Required</span>
@@ -548,7 +548,7 @@
           </div>
           <div class="field-hint">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            Hidden by default. Only sent securely to your backend, never logged or displayed in full.
+            Hidden by default. Sent only to WhySMS over HTTPS — never stored or logged.
           </div>
           <div class="field-error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> API token is required to send messages.</div>
         </div>
@@ -685,7 +685,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg>
               API endpoint
             </span>
-            <span class="config-val config-val-url" id="configApiEndpoint">sms.leapve</span>
+            <span class="config-val config-val-url" id="configApiEndpoint">https://bulk.whysms.com/api/v3/sms/send</span>
           </div>
           <div class="config-row">
             <span class="config-key">
@@ -706,7 +706,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
               Batch size
             </span>
-            <span class="config-val" id="configBatchSize">1,000 per request</span>
+            <span class="config-val" id="configBatchSize">100 per request</span>
           </div>
         </div>
         <div class="locked-note">
@@ -788,7 +788,7 @@
     </aside>
   </div>
 
-  <p class="footnote">LEAPVE SMS · messages are sent to the configured API endpoint in batches</p>
+  <p class="footnote">LEAPVE SMS · messages are sent through the WhySMS API in batches of 100</p>
 </div>
 
 <!-- ============ Confirmation Modal ============ -->
@@ -798,7 +798,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </div>
     <h2>Confirm send</h2>
-    <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages to sms.leapve.com.</p>
+    <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages through WhySMS.</p>
     <div class="modal-summary">
       <div class="modal-row"><span class="k">Recipients</span><span class="v" id="confRecipients">0</span></div>
       <div class="modal-row"><span class="k">Batches</span><span class="v" id="confBatches">0</span></div>
@@ -823,19 +823,21 @@
   "use strict";
 
   /* ================= Fixed configuration (not user-editable) ================= */
-  var FIXED = { apiBase: "sms.leapve", sender: "My Order", type: "plain" };
-  var SEND_ENDPOINT = "https://sms.leapve.com/api/http/sms/send";
-  var BALANCE_ENDPOINT = "https://sms.leapve.com/api/balance";
+  var FIXED = { sender: "My Order", type: "plain" };
+  // Official WhySMS API v3 (from the WhySMS docs). The token goes in "Authorization: Bearer".
+  var WHYSMS_API = "https://bulk.whysms.com/api/v3";
+  var SEND_ENDPOINT = WHYSMS_API + "/sms/send";
+  var BALANCE_ENDPOINT = WHYSMS_API + "/balance";
+  var REPORTS_ENDPOINT = WHYSMS_API + "/sms";
 
   /* ================= Batch sending settings =================
-     The Worker splits every request into WhySMS batches of 100, checks each
-     number, and reports back exactly which numbers were sent, failed, or are
-     unconfirmed. So the page sends 1,000 numbers per request, one request
-     after another. Each request stays inside Cloudflare's free-plan limits,
-     so there is no practical cap on the list size. */
-  var BATCH_SIZE = 1000;           // numbers per request to the Worker
-  var BATCH_DELAY_MS = 300;        // short pause between requests
-  var REQUEST_TIMEOUT_MS = 180000; // longer than the Worker's own worst case, so the page never gives up early
+     Numbers are sent straight to WhySMS, 100 per request, 3 requests at a
+     time. The browser has no limit, so lists of any size work. */
+  var BATCH_SIZE = 100;            // numbers per WhySMS request
+  var CONCURRENCY = 3;             // WhySMS requests running at the same time
+  var REQUEST_TIMEOUT_MS = 90000;  // wait up to 90s for WhySMS before marking a batch "unconfirmed"
+  var VERIFY_MAX_NUMBERS = 2000;   // double-check up to this many unconfirmed numbers in the reports
+  var MAX_REPORT_PAGES = 40;       // report pages to scan when double-checking
   var COUNTRY_CODE = "20";         // local numbers (010...) are treated as Egyptian
 
   /* ================= Elements ================= */
@@ -1458,8 +1460,8 @@
     state.demoMode = el.demoToggle.checked;
     el.demoBadge.classList.toggle('on', state.demoMode);
     el.modalSub.textContent = state.demoMode
-      ? 'Demo mode is on — this will simulate a send and will NOT contact sms.leapve.com.'
-      : 'Double-check the details below — this will send real messages to sms.leapve.com.';
+      ? 'Demo mode is on — this will simulate a send and will NOT contact WhySMS.'
+      : 'Double-check the details below — this will send real messages through WhySMS.';
     if (state.demoMode) toast('warning', 'Demo mode enabled', 'Sends will be simulated — no real messages will go out.');
   });
 
@@ -1471,50 +1473,52 @@
     el.modalConfirm.classList.toggle('loading', isSending);
   }
 
-  /* ================= Balance helpers ================= */
-  function extractBalance(raw){
-    var data = raw;
-    if (typeof raw === 'string'){
-      try { data = JSON.parse(raw); }
-      catch(e){
-        var text = raw.trim();
-        var m = text.match(/(?:balance|credit|credits|remaining(?:_balance)?|available(?:_balance)?)\s*[:=]?\s*["']?([\d,.]+\s*(?:EGP|USD|EUR|GBP)?)/i);
-        if (m) return m[1].trim();
-        var direct = text.match(/([\d,.]+\s*(?:EGP|USD|EUR|GBP))/i);
-        return direct ? direct[1].trim() : null;
-      }
-    }
-    if (data == null) return null;
-    if (typeof data === 'number') return data;
-    if (typeof data === 'string'){
-      var s = data.trim();
-      if (s === '') return null;
-      var n = Number(s.replace(/,/g,''));
-      if (!isNaN(n)) return n;
-      var withCurrency = s.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
-      if (withCurrency) return withCurrency[1].replace(/,/g,'') + ' ' + withCurrency[2].toUpperCase();
-      return null;
-    }
-    if (typeof data === 'object'){
-      if (data.remaining_balance !== undefined && data.remaining_balance !== null && data.remaining_balance !== ''){
-        return String(data.remaining_balance).trim();
-      }
-      var keys = ['balance','credit','credits','sms_balance','smsBalance','remaining','remaining_balance','available_balance','availableBalance','wallet_balance','walletBalance','account_balance','accountBalance','current_balance','currentBalance'];
-      for (var i = 0; i < keys.length; i++){
-        if (data[keys[i]] !== undefined && data[keys[i]] !== null){
-          var nested = extractBalance(data[keys[i]]);
-          if (nested !== null) return nested;
-        }
-      }
-      if (data.data !== undefined){ var d = extractBalance(data.data); if (d !== null) return d; }
-      if (data.result !== undefined){ var r = extractBalance(data.result); if (r !== null) return r; }
-    }
+  /* ================= WhySMS API (direct, per the WhySMS docs) =================
+     The page talks to WhySMS directly, no server in between:
+       POST https://bulk.whysms.com/api/v3/sms/send   (Authorization: Bearer <token>)
+       GET  https://bulk.whysms.com/api/v3/balance
+       GET  https://bulk.whysms.com/api/v3/sms?start_date=..&end_date=..&direction=api&timezone=UTC  (reports)
+     WhySMS answers HTTP 200 even for errors (e.g. {"status":"error","message":"Unauthenticated."}),
+     so the JSON "status" field decides, not the HTTP code. */
+  var AUTH_ERROR_RE = /unauthenticated|unauthori[sz]ed|invalid (api )?token|token (is )?(invalid|expired)/i;
+  var RATE_LIMIT_RE = /too many (attempts|requests)/i;
+  var STOP_ERROR_RE = /balance|credit|insufficient|sender|رصيد/i; // later batches would fail the same way
+
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // Parses JSON even if warnings/HTML are printed around it.
+  function parseJsonLoose(text){
+    if (!text) return null;
+    var t = String(text).replace(/^﻿/, '').trim();
+    try { return JSON.parse(t); } catch (e) {}
+    var a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a !== -1 && b > a){ try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
     return null;
   }
 
+  function whysmsRequest(url, options, timeoutMs){
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){ controller && controller.abort(); }, timeoutMs);
+    options.signal = controller ? controller.signal : undefined;
+    return fetch(url, options)
+      .then(function(res){
+        return res.text().then(function(raw){
+          return { status: res.status, ok: res.ok, raw: raw, json: parseJsonLoose(raw) };
+        });
+      })
+      .then(function(r){ clearTimeout(timer); return r; },
+            function(err){ clearTimeout(timer); throw err; });
+  }
+
+  function authHeaders(token, withBody){
+    var h = { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' };
+    if (withBody) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  /* ================= Balance ================= */
   function formatBalance(balance){
     if (balance === null || balance === undefined || balance === '') return null;
-    if (typeof balance === 'number' && !isNaN(balance)) return balance.toLocaleString();
     var value = String(balance).trim();
     var match = value.match(/^([\d,.]+)\s*([A-Za-z]{3})$/);
     if (match){
@@ -1526,18 +1530,27 @@
     return value;
   }
 
-  function updateBalanceFromResponse(json){
-    if (!json) return;
-    var balance = json.balance_display || json.balance;
-    if (balance === null || balance === undefined || balance === '') balance = extractBalance(json.balance_response);
-    if (balance === null || balance === undefined || balance === '') return;
-    var formatted = formatBalance(balance);
-    el.balanceValue.textContent = formatted;
-    el.topBalanceValue.textContent = formatted;
+  function fetchBalance(token){
+    return whysmsRequest(BALANCE_ENDPOINT, { method: 'GET', headers: authHeaders(token) }, 20000)
+      .then(function(r){
+        var j = r.json;
+        if (j && j.status === 'success' && j.data && j.data.remaining_balance != null){
+          return { ok: true, value: formatBalance(j.data.remaining_balance) };
+        }
+        var msg = (j && j.message) || '';
+        if (AUTH_ERROR_RE.test(msg) || r.status === 401) return { ok: false, message: 'Invalid API token.' };
+        return { ok: false, message: 'Unable to retrieve the current SMS balance.' };
+      }, function(){
+        return { ok: false, message: 'Could not reach WhySMS. Check your connection.' };
+      });
+  }
+
+  function showBalance(value){
+    el.topBalanceValue.textContent = value;
+    el.balanceValue.textContent = value;
     el.balanceTile.classList.add('show');
   }
 
-  /* ================= Balance checker ================= */
   function checkBalance(){
     var apiToken = el.apiToken.value.trim();
     if (!apiToken){
@@ -1553,35 +1566,17 @@
     el.topBalanceStatus.textContent = 'Requesting balance...';
     el.topBalanceStatus.className = 'balance-checker-status';
 
-    fetch(BALANCE_ENDPOINT, {
-      method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + apiToken, 'Accept': 'application/json' }
-    }).then(function(res){
-      return res.text().then(function(raw){
-        var json = null;
-        try { json = raw ? JSON.parse(raw) : null; } catch (e) { json = null; }
-        return { ok: res.ok, status: res.status, json: json, raw: raw };
-      });
-    }).then(function(result){
-      var json = result.json;
-      if (!result.ok || !json || json.success !== true){
-        throw new Error(result.status === 401 || result.status === 403 ? 'Invalid API token.' : 'Unable to retrieve the current SMS balance.');
+    fetchBalance(apiToken).then(function(b){
+      if (b.ok){
+        showBalance(b.value);
+        el.topBalanceStatus.textContent = 'Current available balance';
+        el.topBalanceStatus.className = 'balance-checker-status success';
+        toast('success', 'Balance updated', 'Current SMS balance: ' + b.value);
+      } else {
+        el.topBalanceStatus.textContent = b.message;
+        el.topBalanceStatus.className = 'balance-checker-status error';
+        toast('error', 'Balance check failed', b.message);
       }
-      var balance = json.balance_display || json.balance;
-      if (balance === null || balance === undefined || balance === '') balance = extractBalance(json.balance_response);
-      if (balance === null || balance === undefined || balance === '') throw new Error('Unable to retrieve the current balance.');
-      var formatted = formatBalance(balance);
-      el.topBalanceValue.textContent = formatted;
-      el.topBalanceStatus.textContent = 'Current available balance';
-      el.topBalanceStatus.className = 'balance-checker-status success';
-      el.balanceValue.textContent = formatted;
-      el.balanceTile.classList.add('show');
-      toast('success', 'Balance updated', 'Current SMS balance: ' + formatted);
-    }).catch(function(err){
-      var m = err && err.message ? err.message : 'Balance request failed';
-      el.topBalanceStatus.textContent = m;
-      el.topBalanceStatus.className = 'balance-checker-status error';
-      toast('error', 'Balance check failed', m);
     }).finally(function(){
       el.checkBalanceBtn.disabled = false;
       el.checkBalanceBtn.textContent = 'Check balance';
@@ -1589,154 +1584,113 @@
   }
   el.checkBalanceBtn.addEventListener('click', checkBalance);
 
-  /* ================= Interpreting the gateway reply =================
-     Backend wraps WhySMS's reply as a JSON string in `whysms_response`.
-     Per WhySMS docs: success = {"status":"success","data":...},
-     error = {"status":"error","message":"..."}. */
-  function interpretApiResult(json, httpStatus, httpOk){
-    if (json && typeof json === 'object'){
-      var inner = json;
-      var wrapped = false;
-
-      if (typeof json.whysms_response === 'string' && json.whysms_response.trim() !== ''){
-        try { inner = JSON.parse(json.whysms_response); wrapped = true; }
-        catch (e){
-          var low = json.whysms_response.toLowerCase();
-          var bad = /error|fail|invalid|reject|unauthor|insufficient/.test(low);
-          return { ok: !bad, message: json.whysms_response };
-        }
-      } else if (json.whysms_response && typeof json.whysms_response === 'object'){
-        inner = json.whysms_response; wrapped = true;
-      }
-
-      if (!inner || typeof inner !== 'object') return { ok: !!httpOk, message: null };
-
-      var msg = inner.message || inner.msg || inner.error || inner.errors || null;
-      if (msg && typeof msg !== 'string') msg = JSON.stringify(msg);
-
-      if (typeof inner.status === 'string'){
-        var s = inner.status.toLowerCase();
-        if (['success','ok','sent','done','completed','true'].indexOf(s) !== -1) return { ok: true, message: msg };
-        if (['error','failed','fail','failure','invalid','rejected','false'].indexOf(s) !== -1) return { ok: false, message: msg };
-      }
-      if (typeof inner.status === 'boolean') return { ok: inner.status, message: msg };
-      if (inner.error || inner.errors) return { ok: false, message: msg || 'The gateway reported an error.' };
-      if (inner.data) return { ok: true, message: msg };
-      if (!wrapped){
-        if (typeof inner.success === 'boolean') return { ok: inner.success, message: msg };
-        if (typeof inner.ok === 'boolean') return { ok: inner.ok, message: msg };
-      }
-      return { ok: !!httpOk, message: msg };
-    }
-    if (json === null) return { ok: false, message: 'Empty or non-JSON response (HTTP ' + httpStatus + ').' };
-    return { ok: !!httpOk, message: null };
-  }
-
-  /* ================= One batch =================
-     Returns { sent:[], failed:[], unknown:[], message, stop, notSent }.
-     The Worker reports exactly which numbers failed or are unconfirmed, so a
-     batch can be partly sent. 'unknown' = no readable reply (timeout, network)
-     or the Worker could not confirm; the messages may well have gone out, so
-     they are NOT counted as failed and NOT auto-retried.
-     notSent = the request was refused before anything was sent (bad token,
-     missing field): the run stops and these numbers stay "not sent yet". */
-  function toSet(list){
-    var o = Object.create(null);
-    for (var i = 0; i < list.length; i++) o[list[i]] = true;
-    return o;
-  }
-  // First reason the Worker gave for numbers in this state ('failed' or 'unconfirmed')
-  function workerReason(json, wanted){
-    if (json && Array.isArray(json.batches)){
-      for (var i = 0; i < json.batches.length; i++){
-        if (json.batches[i].state === wanted && json.batches[i].message) return json.batches[i].message;
-      }
-    }
-    return null;
-  }
-  function sendBatch(numbers){
+  /* ================= One batch (100 numbers, one WhySMS request) =================
+     Result kinds:
+       sent     WhySMS said "success"
+       failed   WhySMS said "error" (reason kept). maybeSent = some numbers may still have gone out
+       unknown  no readable answer (timeout, network, server error): the messages may well have gone
+                out, so they are NOT counted as failed and NOT retried automatically
+       notSent  refused before sending (bad token, rate limit): numbers stay "not sent yet" */
+  function sendBatch(numbers, attempt){
+    attempt = attempt || 1;
     var payload = {
-      api_token: el.apiToken.value.trim(),
       recipient: numbers.join(','),
       sender_id: FIXED.sender,
       type: FIXED.type,
       message: el.messageInput.value
     };
-    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var timer = setTimeout(function(){ controller && controller.abort(); }, REQUEST_TIMEOUT_MS);
-
-    return fetch(SEND_ENDPOINT, {
+    return whysmsRequest(SEND_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: controller ? controller.signal : undefined
-    }).then(function(res){
-      return res.text().then(function(raw){
-        clearTimeout(timer);
-        var json = null;
-        try { json = raw ? JSON.parse(raw) : null; } catch (e) { json = null; }
-        updateBalanceFromResponse(json);
-        if (window.console) console.log('[LEAPVE] batch reply', res.status, raw);
+      headers: authHeaders(el.apiToken.value.trim(), true),
+      body: JSON.stringify(payload)
+    }, REQUEST_TIMEOUT_MS).then(function(r){
+      if (window.console) console.log('[LEAPVE] WhySMS reply', r.status, r.raw);
+      var j = r.json;
+      var st = (j && typeof j.status === 'string') ? j.status.trim().toLowerCase() : null;
+      var msg = j && j.message ? (typeof j.message === 'string' ? j.message : JSON.stringify(j.message)) : null;
 
-        // New Worker: exact per-number result
-        if (json && Array.isArray(json.failed_numbers)){
-          var failedSet = toSet(json.failed_numbers);
-          var unknownSet = toSet(json.unconfirmed_numbers || []);
-          var out = { sent: [], failed: [], unknown: [],
-                      message: workerReason(json, 'failed') || json.message || null,
-                      unknownMessage: workerReason(json, 'unconfirmed') };
-          for (var i = 0; i < numbers.length; i++){
-            var n = numbers[i];
-            if (failedSet[n]) out.failed.push(n);
-            else if (unknownSet[n]) out.unknown.push(n);
-            else out.sent.push(n);
-          }
-          if (json.status === 'failed'){
-            out.stop = true; // whole batch refused (e.g. no balance) — don't burn through the list
-            if (res.status === 401 || res.status === 422){
-              out.notSent = true;
-              out.message = res.status === 401 ? 'Invalid or expired API token.' : (out.message || 'Request rejected.');
-            }
-          }
-          return out;
+      if (st === 'success') return { kind: 'sent' };
+
+      if (st === 'error' || st === 'failed' || [401, 403, 422, 429].indexOf(r.status) !== -1){
+        msg = msg || ('HTTP ' + r.status);
+        if (AUTH_ERROR_RE.test(msg) || r.status === 401){
+          return { kind: 'notSent', stop: true, message: 'Invalid or expired API token.' };
         }
-        // Worker refused the request itself (missing field, bad JSON, too many numbers): nothing was sent
-        if (res.status >= 400 && res.status < 500){
-          return { sent: [], failed: [], unknown: [], notSent: true, stop: true, message: (json && json.message) || ('Request rejected (HTTP ' + res.status + ').') };
+        if (RATE_LIMIT_RE.test(msg) || r.status === 429){
+          if (attempt < 4) return sleep(3000 * attempt).then(function(){ return sendBatch(numbers, attempt + 1); });
+          return { kind: 'notSent', stop: true, message: 'WhySMS is limiting requests right now. Wait a minute, then send the remaining.' };
         }
-        // Server/gateway error: the messages may still have gone out
-        if (res.status >= 500 || json === null){
-          return { sent: [], failed: [], unknown: numbers.slice(), message: 'Unexpected reply from the server (HTTP ' + res.status + ').' };
-        }
-        // Older Worker format: batch-level answer only
-        var v = interpretApiResult(json, res.status, res.ok);
-        return v.ok
-          ? { sent: numbers.slice(), failed: [], unknown: [], message: v.message }
-          : { sent: [], failed: numbers.slice(), unknown: [], message: v.message };
-      });
-    }).catch(function(err){
-      clearTimeout(timer);
-      var msg = (err && err.name === 'AbortError')
-        ? 'Timed out after ' + (REQUEST_TIMEOUT_MS / 1000) + 's waiting for a reply.'
-        : 'The reply could not be read (network problem).';
-      return { sent: [], failed: [], unknown: numbers.slice(), message: msg };
+        var stop = STOP_ERROR_RE.test(msg);
+        return { kind: 'failed', message: msg, stop: stop, maybeSent: !stop && r.status !== 422 };
+      }
+
+      if (r.ok && j) return { kind: 'sent' }; // JSON answer without any error flag
+      return { kind: 'unknown', message: r.ok
+        ? 'WhySMS answered without a readable confirmation.'
+        : 'WhySMS server error (HTTP ' + r.status + ').' };
+    }, function(err){
+      return { kind: 'unknown', message: (err && err.name === 'AbortError')
+        ? 'No reply from WhySMS after ' + (REQUEST_TIMEOUT_MS / 1000) + 's.'
+        : 'The reply could not be read (network problem).' };
     });
+  }
+
+  /* ================= Double-check in WhySMS reports =================
+     For numbers WhySMS didn't clearly confirm, look them up in the WhySMS
+     reports for this send's time window. Found = it went out. */
+  function toSet(list){
+    var o = Object.create(null);
+    for (var i = 0; i < list.length; i++) o[list[i]] = true;
+    return o;
+  }
+  function formatUtc(d){
+    function p(n){ return String(n).padStart(2, '0'); }
+    return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' +
+           p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
+  }
+  function verifyInReports(numbers, since){
+    var wanted = toSet(numbers);
+    var found = Object.create(null), foundCount = 0;
+    var token = el.apiToken.value.trim();
+    var start = formatUtc(new Date(since.getTime() - 2 * 60 * 1000));
+    var end = formatUtc(new Date(Date.now() + 2 * 60 * 1000));
+    var page = 1, lastPage = 1;
+
+    function step(){
+      if (page > lastPage || page > MAX_REPORT_PAGES || foundCount >= numbers.length) return Promise.resolve(found);
+      var qs = 'start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end) +
+               '&direction=api&timezone=UTC&page=' + page + '&per_page=100';
+      return whysmsRequest(REPORTS_ENDPOINT + '?' + qs, { method: 'GET', headers: authHeaders(token) }, 20000)
+        .then(function(r){
+          var d = r.json && r.json.data;
+          var rows = d && Array.isArray(d.data) ? d.data : null;
+          if (!rows) return found;
+          for (var i = 0; i < rows.length; i++){
+            var to = rows[i] && rows[i].to != null ? String(rows[i].to).replace(/\D/g, '') : '';
+            if (wanted[to] && !found[to]){ found[to] = true; foundCount++; }
+          }
+          lastPage = Number(d.last_page) || page;
+          page++;
+          return step();
+        }, function(){ return found; });
+    }
+    return step();
   }
 
   /* ================= Batch runner ================= */
   function plural(n, word){ return n.toLocaleString() + ' ' + word + (n === 1 ? '' : 's'); }
 
-  function showProgress(done, total, res, totalNumbers){
-    var pct = Math.round(((done - 1) / total) * 100);
-    var stopBtn = state.stopRequested
-      ? '<button type="button" class="retry-btn" disabled>Stopping after this batch…</button>'
-      : '<button type="button" class="retry-btn" data-act="stop">Stop after this batch</button>';
+  function showProgress(done, total, res, totalNumbers, note){
+    var pct = Math.round((done / total) * 100);
+    var stopBtn = note ? '' : (state.stopRequested
+      ? '<button type="button" class="retry-btn" disabled>Stopping…</button>'
+      : '<button type="button" class="retry-btn" data-act="stop">Stop sending</button>');
     el.resultBanner.className = 'result-banner show info';
     el.resultBanner.innerHTML = ICONS.info +
-      '<div class="rb-body"><b class="title">Sending… batch ' + done + ' of ' + total + '</b>' +
+      '<div class="rb-body"><b class="title">' + (note || ('Sending… ' + done + ' of ' + total + ' batches done')) + '</b>' +
       'Please keep this page open until it finishes.' +
       '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-      '<div class="batch-stats"><span>Sent: ' + res.sent.toLocaleString() + ' / ' + totalNumbers.toLocaleString() + '</span>' +
+      '<div class="batch-stats"><span>Sent: ' + res.sent.length.toLocaleString() + ' / ' + totalNumbers.toLocaleString() + '</span>' +
       (res.unknown.length ? '<span>Unconfirmed: ' + res.unknown.length.toLocaleString() + '</span>' : '') +
       (res.failed.length ? '<span>Failed: ' + res.failed.length.toLocaleString() + '</span>' : '') +
       '</div>' + stopBtn + '</div>';
@@ -1759,75 +1713,105 @@
     var batches = [];
     for (var i = 0; i < numbers.length; i += BATCH_SIZE) batches.push(numbers.slice(i, i + BATCH_SIZE));
 
-    var res = { sent: 0, failed: [], unknown: [], pending: [], errors: [], unknownReasons: [], stoppedReason: null };
-    var idx = 0;
+    var res = { sent: [], failed: [], unknown: [], pending: [], maybeSent: [], errors: [], unknownReasons: [], stoppedReason: null, startedAt: new Date() };
+    var nextIdx = 0, active = 0, done = 0, halted = false, finished = false;
 
-    function stopHere(reason){
-      res.stoppedReason = reason;
-      res.pending = [].concat.apply([], batches.slice(idx));
-      finishSend(res, numbers.length, batches.length);
+    function launch(){
+      while (active < CONCURRENCY && nextIdx < batches.length && !halted && !state.stopRequested){
+        runOne(batches[nextIdx++]);
+      }
+      if (active === 0 && !finished){
+        finished = true;
+        if (nextIdx < batches.length){
+          res.pending = res.pending.concat([].concat.apply([], batches.slice(nextIdx)));
+          if (!res.stoppedReason) res.stoppedReason = 'You stopped the sending.';
+        }
+        complete();
+      }
     }
 
-    function next(){
-      if (idx >= batches.length){ finishSend(res, numbers.length, batches.length); return; }
-      if (state.stopRequested){ stopHere('You stopped the sending.'); return; }
-      showProgress(idx + 1, batches.length, res, numbers.length);
-      var batch = batches[idx];
+    function runOne(batch){
+      active++;
       sendBatch(batch).then(function(r){
-        if (r.notSent){ stopHere(r.message || 'The request was rejected.'); return; }
-        res.sent += r.sent.length;
-        if (r.failed.length){ res.failed = res.failed.concat(r.failed); if (r.message) res.errors.push(r.message); }
-        if (r.unknown.length){ res.unknown = res.unknown.concat(r.unknown); if (r.unknownMessage || r.message) res.unknownReasons.push(r.unknownMessage || r.message); }
-        idx++;
-        if (r.stop && idx < batches.length){ stopHere(r.message || 'WhySMS rejected the batch.'); return; }
-        if (idx < batches.length) setTimeout(next, BATCH_DELAY_MS);
-        else next();
+        active--; done++;
+        if (r.kind === 'sent') res.sent = res.sent.concat(batch);
+        else if (r.kind === 'unknown'){ res.unknown = res.unknown.concat(batch); res.unknownReasons.push(r.message); }
+        else if (r.kind === 'failed'){
+          res.failed = res.failed.concat(batch);
+          res.errors.push(r.message);
+          if (r.maybeSent) res.maybeSent = res.maybeSent.concat(batch);
+        }
+        else if (r.kind === 'notSent') res.pending = res.pending.concat(batch);
+        if (r.stop && !halted){ halted = true; res.stoppedReason = r.message; }
+        if (!finished) showProgress(done, batches.length, res, numbers.length);
+        launch();
       });
     }
-    next();
+
+    function complete(){
+      var toCheck = res.unknown.concat(res.maybeSent);
+      if (!toCheck.length || toCheck.length > VERIFY_MAX_NUMBERS){ finishSend(res); return; }
+      showProgress(done, batches.length, res, numbers.length, 'Checking WhySMS reports for unconfirmed numbers…');
+      verifyInReports(toCheck, res.startedAt).then(function(found){
+        var moved = 0;
+        function keep(n){ if (found[n]){ moved++; res.sent.push(n); return false; } return true; }
+        res.unknown = res.unknown.filter(keep);
+        res.failed = res.failed.filter(keep);
+        res.verifiedInReports = moved;
+        finishSend(res);
+      });
+    }
+
+    showProgress(0, batches.length, res, numbers.length);
+    launch();
   }
 
-  function finishSend(res, total, batchCount){
+  function finishSend(res){
     setSending(false);
     state.stopRequested = false;
     state.failedNumbers = res.failed.slice();
     state.unknownNumbers = res.unknown.slice();
     state.pendingNumbers = res.pending.slice();
 
-    var unique = function(list){ return list.filter(function(m, i, a){ return a.indexOf(m) === i; }).slice(0, 3); };
-    var stats = '<div class="batch-stats"><span>Sent: ' + res.sent.toLocaleString() + '</span>' +
+    var sent = res.sent.length;
+    var unique = function(list){ return list.filter(function(m, i, a){ return m && a.indexOf(m) === i; }).slice(0, 3); };
+    var stats = '<div class="batch-stats"><span>Sent: ' + sent.toLocaleString() + '</span>' +
       (res.unknown.length ? '<span>Unconfirmed: ' + res.unknown.length.toLocaleString() + '</span>' : '') +
       (res.failed.length ? '<span>Failed: ' + res.failed.length.toLocaleString() + '</span>' : '') +
       (res.pending.length ? '<span>Not sent yet: ' + res.pending.length.toLocaleString() + '</span>' : '') + '</div>';
 
     var kind, title, icon, lines = [];
     if (res.pending.length){
-      kind = res.sent ? 'warning' : 'error'; icon = res.sent ? ICONS.warning : ICONS.error;
+      kind = sent ? 'warning' : 'error'; icon = sent ? ICONS.warning : ICONS.error;
       title = 'Stopped — ' + plural(res.pending.length, 'number') + ' not sent yet';
       lines.push(escapeHtml(res.stoppedReason || 'Sending stopped.'));
       toast(kind, 'Sending stopped', res.stoppedReason || '');
     } else if (res.failed.length){
       kind = 'error'; icon = ICONS.error;
-      title = res.sent ? 'Partly sent — some numbers failed' : 'Unable to send SMS';
+      title = sent ? 'Partly sent — some numbers failed' : 'Unable to send SMS';
       var errs = unique(res.errors);
-      lines.push(errs.length ? 'Reason: ' + errs.map(escapeHtml).join(' · ') : 'The API rejected the request.');
+      lines.push(errs.length ? 'Reason: ' + errs.map(escapeHtml).join(' · ') : 'WhySMS rejected the request.');
       toast('error', title, errs[0] || 'Check the details and try again.');
     } else if (res.unknown.length){
       kind = 'warning'; icon = ICONS.warning;
-      title = res.sent ? 'Sent — some replies not confirmed' : 'Probably sent — reply not confirmed';
+      title = sent ? 'Sent — some replies not confirmed' : 'Probably sent — reply not confirmed';
       toast('warning', 'Status not confirmed', 'Check the WhySMS report before resending.');
     } else {
       kind = 'success'; icon = ICONS.success;
       title = 'Sent successfully';
-      lines.push('SMS sent to ' + plural(res.sent, 'recipient') + '.');
-      toast('success', 'SMS sent', 'Sent to ' + plural(res.sent, 'recipient') + '.');
+      lines.push('SMS sent to ' + plural(sent, 'recipient') + '.');
+      toast('success', 'SMS sent', 'Sent to ' + plural(sent, 'recipient') + '.');
     }
     if (res.pending.length && res.failed.length){
-      lines.push(plural(res.failed.length, 'number') + ' failed' + (unique(res.errors)[0] ? ' (' + escapeHtml(unique(res.errors)[0]) + ')' : '') + '.');
+      var e0 = unique(res.errors)[0];
+      lines.push(plural(res.failed.length, 'number') + ' failed' + (e0 ? ' (' + escapeHtml(e0) + ')' : '') + '.');
     }
     if (res.unknown.length){
       lines.push(plural(res.unknown.length, 'number') + ' got no confirmation (' + escapeHtml(unique(res.unknownReasons)[0] || 'timeout') + '). ' +
         'They most likely went out. <b>Don’t resend them</b> until you check the delivery report in WhySMS.');
+    }
+    if (res.verifiedInReports){
+      lines.push(plural(res.verifiedInReports, 'number') + ' were confirmed from the WhySMS reports.');
     }
 
     var buttons = '';
@@ -1840,6 +1824,10 @@
     el.resultBanner.className = 'result-banner show ' + kind;
     el.resultBanner.innerHTML = icon + '<div class="rb-body"><b class="title">' + title + '</b>' +
       lines.join('<br>') + stats + (buttons ? '<div>' + buttons + '</div>' : '') + '</div>';
+
+    // refresh the balance after sending
+    var token = el.apiToken.value.trim();
+    if (token) fetchBalance(token).then(function(b){ if (b.ok) showBalance(b.value); });
   }
 
   function downloadList(name, list){
@@ -1860,7 +1848,7 @@
     if (act === 'stop'){
       state.stopRequested = true;
       b.disabled = true;
-      b.textContent = 'Stopping after this batch…';
+      b.textContent = 'Stopping…';
     } else if (act === 'retry-failed'){
       if (state.failedNumbers.length && window.confirm('Resend to ' + plural(state.failedNumbers.length, 'failed number') + '?')){
         performSend(state.failedNumbers.slice());
