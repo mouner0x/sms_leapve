@@ -788,7 +788,7 @@
     </aside>
   </div>
 
-  <p class="footnote">LEAPVE SMS · messages are sent through the WhySMS API in batches of 100</p>
+  <p class="footnote">LEAPVE SMS · messages are sent through the WhySMS API in batches of 50, confirmed against WhySMS reports</p>
 </div>
 
 <!-- ============ Confirmation Modal ============ -->
@@ -833,11 +833,14 @@
   /* ================= Batch sending settings =================
      Numbers are sent straight to WhySMS, 100 per request, 3 requests at a
      time. The browser has no limit, so lists of any size work. */
-  var BATCH_SIZE = 100;            // numbers per WhySMS request
-  var CONCURRENCY = 3;             // WhySMS requests running at the same time
-  var REQUEST_TIMEOUT_MS = 90000;  // wait up to 90s for WhySMS before marking a batch "unconfirmed"
-  var VERIFY_MAX_NUMBERS = 2000;   // double-check up to this many unconfirmed numbers in the reports
-  var MAX_REPORT_PAGES = 40;       // report pages to scan when double-checking
+  var BATCH_SIZE = 50;             // smaller batches = WhySMS answers before the gateway (504) timeout
+  var CONCURRENCY = 1;             // one request at a time: avoids "Too Many Attempts" and server overload
+  var REQUEST_TIMEOUT_MS = 120000; // wait up to 120s for WhySMS before marking a batch "unconfirmed"
+  var VERIFY_MAX_NUMBERS = 10000;  // reconcile up to this many numbers against the reports
+  var MAX_REPORT_PAGES = 400;      // report pages to scan (WhySMS may ignore per_page and use 25)
+  var VERIFY_PASSES = 5;           // re-check the reports a few times (they can lag a few seconds)
+  var VERIFY_WAIT_MS = 10000;       // wait between report passes
+  var FAILED_REPORT_STATUS_RE = /fail|reject|undeliver|expired|error|blocked|invalid/i;
   var COUNTRY_CODE = "20";         // local numbers (010...) are treated as Egyptian
 
   /* ================= Elements ================= */
@@ -1596,7 +1599,8 @@
     var payload = {
       recipient: numbers.join(','),
       sender_id: FIXED.sender,
-      type: FIXED.type,
+      // Arabic / emoji need "unicode", otherwise WhySMS may reject or garble them
+      type: computeSmsInfo(el.messageInput.value).encoding === 'UCS-2' ? 'unicode' : FIXED.type,
       message: el.messageInput.value
     };
     return whysmsRequest(SEND_ENDPOINT, {
@@ -1624,7 +1628,8 @@
         return { kind: 'failed', message: msg, stop: stop, maybeSent: !stop && r.status !== 422 };
       }
 
-      if (r.ok && j) return { kind: 'sent' }; // JSON answer without any error flag
+      // Anything else (no status field, HTML, 5xx/504) is NOT proof of success or failure:
+      // the server may have sent the SMS and then timed out. The reports decide.
       return { kind: 'unknown', message: r.ok
         ? 'WhySMS answered without a readable confirmation.'
         : 'WhySMS server error (HTTP ' + r.status + ').' };
@@ -1648,33 +1653,69 @@
     return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()) + ' ' +
            p(d.getUTCHours()) + ':' + p(d.getUTCMinutes()) + ':' + p(d.getUTCSeconds());
   }
+  // Returns { ok, sent:{num:true}, failed:{num:reportStatus} }.
+  // ok=false means the reports could not be read fully, so "not found" proves nothing.
   function verifyInReports(numbers, since){
     var wanted = toSet(numbers);
-    var found = Object.create(null), foundCount = 0;
+    var sent = Object.create(null), failed = Object.create(null), seenCount = 0;
     var token = el.apiToken.value.trim();
-    var start = formatUtc(new Date(since.getTime() - 2 * 60 * 1000));
-    var end = formatUtc(new Date(Date.now() + 2 * 60 * 1000));
-    var page = 1, lastPage = 1;
+    var start = formatUtc(new Date(since.getTime() - 3 * 60 * 60 * 1000));
+    var end = formatUtc(new Date(Date.now() + 3 * 60 * 60 * 1000));
+    var sentText = normText(el.messageInput.value);
+    var page = 1, lastPage = 1, ok = true;
 
     function step(){
-      if (page > lastPage || page > MAX_REPORT_PAGES || foundCount >= numbers.length) return Promise.resolve(found);
+      if (seenCount >= numbers.length || page > lastPage) return Promise.resolve();
+      if (page > MAX_REPORT_PAGES){ ok = false; return Promise.resolve(); }
       var qs = 'start_date=' + encodeURIComponent(start) + '&end_date=' + encodeURIComponent(end) +
-               '&direction=api&timezone=UTC&page=' + page + '&per_page=100';
-      return whysmsRequest(REPORTS_ENDPOINT + '?' + qs, { method: 'GET', headers: authHeaders(token) }, 20000)
+               '&timezone=UTC&page=' + page + '&per_page=100';
+      return whysmsRequest(REPORTS_ENDPOINT + '?' + qs, { method: 'GET', headers: authHeaders(token) }, 30000)
         .then(function(r){
           var d = r.json && r.json.data;
           var rows = d && Array.isArray(d.data) ? d.data : null;
-          if (!rows) return found;
+          if (!rows || (r.json.status && r.json.status !== 'success')){ ok = false; return; }
           for (var i = 0; i < rows.length; i++){
-            var to = rows[i] && rows[i].to != null ? String(rows[i].to).replace(/\D/g, '') : '';
-            if (wanted[to] && !found[to]){ found[to] = true; foundCount++; }
+            var row = rows[i] || {};
+            var to = normalizeNumber(row.to) || String(row.to || '').replace(/\D/g, '');
+            if (!wanted[to] || sent[to]) continue;
+            if (row.message != null && sentText && normText(row.message) !== sentText) continue; // another message
+            var st = String(row.status || '');
+            if (FAILED_REPORT_STATUS_RE.test(st)){
+              if (!failed[to]){ failed[to] = st || 'Failed'; }
+            } else {
+              seenCount++;
+              delete failed[to];
+              sent[to] = true; // Delivered / Sent / Pending / Queued = it left WhySMS
+            }
           }
           lastPage = Number(d.last_page) || page;
           page++;
           return step();
-        }, function(){ return found; });
+        }, function(){ ok = false; });
     }
-    return step();
+    return step().then(function(){ return { ok: ok, sent: sent, failed: failed }; });
+  }
+
+  function normText(t){ return String(t == null ? '' : t).replace(/\s+/g, ' ').trim(); }
+
+  // Several passes because WhySMS can take a few seconds to write report rows.
+  function reconcile(numbers, since, onPass){
+    var result = { ok: false, sent: Object.create(null), failed: Object.create(null) };
+    var pass = 0;
+    function run(){
+      pass++;
+      if (onPass) onPass(pass);
+      return verifyInReports(numbers, since).then(function(v){
+        result.ok = v.ok;
+        for (var k in v.sent){ result.sent[k] = true; delete result.failed[k]; }
+        for (var f in v.failed) if (!result.sent[f]) result.failed[f] = v.failed[f];
+        var resolved = 0;
+        for (var i = 0; i < numbers.length; i++) if (result.sent[numbers[i]] || result.failed[numbers[i]]) resolved++;
+        if (resolved >= numbers.length || pass >= VERIFY_PASSES) return result;
+        return sleep(VERIFY_WAIT_MS).then(run);
+      });
+    }
+    return sleep(3000).then(run);
   }
 
   /* ================= Batch runner ================= */
@@ -1748,16 +1789,37 @@
       });
     }
 
+    // Final truth = WhySMS reports. Every number that was attempted (sent, failed, unknown)
+    // is looked up, so an "error" reply whose SMS actually went out ends up as ✓ sent,
+    // and a "success" reply whose number the report marks Failed ends up as ✗.
     function complete(){
-      var toCheck = res.unknown.concat(res.maybeSent);
-      if (!toCheck.length || toCheck.length > VERIFY_MAX_NUMBERS){ finishSend(res); return; }
-      showProgress(done, batches.length, res, numbers.length, 'Checking WhySMS reports for unconfirmed numbers…');
-      verifyInReports(toCheck, res.startedAt).then(function(found){
-        var moved = 0;
-        function keep(n){ if (found[n]){ moved++; res.sent.push(n); return false; } return true; }
-        res.unknown = res.unknown.filter(keep);
-        res.failed = res.failed.filter(keep);
+      var attempted = res.sent.concat(res.failed, res.unknown);
+      if (!attempted.length || attempted.length > VERIFY_MAX_NUMBERS){ finishSend(res); return; }
+      reconcile(attempted, res.startedAt, function(pass){
+        showProgress(done, batches.length, res, numbers.length,
+          'Confirming every number in the WhySMS reports… (pass ' + pass + ' of ' + VERIFY_PASSES + ')');
+      }).then(function(v){
+        var replySent = toSet(res.sent);
+        var sent = [], failed = [], unknown = [], moved = 0;
+        res.reportStatus = v.failed;
+        // Sanity check: if the API said "success" for numbers but the reports show none of them,
+        // the report lookup itself is not working -> never turn missing numbers into ✗.
+        var anyFound = false;
+        for (var q = 0; q < attempted.length; q++) if (v.sent[attempted[q]] || v.failed[attempted[q]]){ anyFound = true; break; }
+        var reportsTrusted = v.ok && (anyFound || res.sent.length === 0);
+        for (var i = 0; i < attempted.length; i++){
+          var n = attempted[i];
+          if (v.sent[n]){ sent.push(n); if (!replySent[n]) moved++; }
+          else if (v.failed[n]) failed.push(n);
+          else if (replySent[n]) sent.push(n);          // API said success: keep ✓ (report may lag)
+          else if (reportsTrusted) failed.push(n);      // API error + not in trusted reports = not sent
+          else unknown.push(n);                         // can't prove either way
+        }
+        v.ok = reportsTrusted;
+        res.sent = sent; res.failed = failed; res.unknown = unknown;
         res.verifiedInReports = moved;
+        res.reportsOk = v.ok;
+        if (failed.length && !res.errors.length) res.errors.push('Not found in WhySMS reports / marked failed');
         finishSend(res);
       });
     }
@@ -1772,6 +1834,14 @@
     state.failedNumbers = res.failed.slice();
     state.unknownNumbers = res.unknown.slice();
     state.pendingNumbers = res.pending.slice();
+    state.lastStartedAt = res.startedAt;
+    // Per-number result sheet: ✓ sent / ✗ not sent / ? unconfirmed / – not attempted
+    var rowsOut = ['number,result,detail'];
+    res.sent.forEach(function(n){ rowsOut.push(n + ',✓ SENT,'); });
+    res.failed.forEach(function(n){ rowsOut.push(n + ',✗ NOT SENT,' + String((res.reportStatus && res.reportStatus[n]) || 'not in WhySMS reports').replace(/,/g, ' ')); });
+    res.unknown.forEach(function(n){ rowsOut.push(n + ',? UNCONFIRMED,reports could not be read'); });
+    res.pending.forEach(function(n){ rowsOut.push(n + ',– NOT ATTEMPTED,' + String(res.stoppedReason || '').replace(/,/g, ' ')); });
+    state.resultCsv = rowsOut;
 
     var sent = res.sent.length;
     var unique = function(list){ return list.filter(function(m, i, a){ return m && a.indexOf(m) === i; }).slice(0, 3); };
@@ -1811,10 +1881,11 @@
         'They most likely went out. <b>Don’t resend them</b> until you check the delivery report in WhySMS.');
     }
     if (res.verifiedInReports){
-      lines.push(plural(res.verifiedInReports, 'number') + ' were confirmed from the WhySMS reports.');
+      lines.push(plural(res.verifiedInReports, 'number') + ' got an error/no reply from the API but WERE sent (confirmed in WhySMS reports).');
     }
+    if (res.reportsOk) lines.push('✓/✗ results below are confirmed against the WhySMS reports.');
 
-    var buttons = '';
+    var buttons = '<button type="button" class="retry-btn" data-act="dl-results">Download ✓/✗ per number</button> ';
     if (res.pending.length) buttons += '<button type="button" class="retry-btn" data-act="send-remaining">Send the remaining ' + res.pending.length.toLocaleString() + '</button> ';
     if (res.failed.length) buttons += '<button type="button" class="retry-btn" data-act="retry-failed">Retry the ' + res.failed.length.toLocaleString() + ' failed only</button> ';
     if (res.failed.length) buttons += '<button type="button" class="retry-btn" data-act="dl-failed">Download failed</button> ';
@@ -1851,7 +1922,15 @@
       b.textContent = 'Stopping…';
     } else if (act === 'retry-failed'){
       if (state.failedNumbers.length && window.confirm('Resend to ' + plural(state.failedNumbers.length, 'failed number') + '?')){
-        performSend(state.failedNumbers.slice());
+        var list = state.failedNumbers.slice();
+        b.disabled = true; b.textContent = 'Re-checking reports…';
+        verifyInReports(list, state.lastStartedAt || new Date()).then(function(v){
+          var todo = list.filter(function(n){ return !v.sent[n]; });
+          var skipped = list.length - todo.length;
+          if (skipped) toast('info', 'Skipped ' + plural(skipped, 'number'), 'They turned out to be already sent — not resending.');
+          if (todo.length) performSend(todo);
+          else { b.textContent = 'All were already sent'; }
+        });
       }
     } else if (act === 'send-remaining'){
       if (state.pendingNumbers.length && window.confirm('Send to the remaining ' + plural(state.pendingNumbers.length, 'number') + '?')){
@@ -1861,6 +1940,12 @@
       downloadList('failed-numbers.txt', state.failedNumbers);
     } else if (act === 'dl-unknown'){
       downloadList('unconfirmed-numbers.txt', state.unknownNumbers);
+    } else if (act === 'dl-results'){
+      var blob = new Blob(['﻿' + (state.resultCsv || []).join('\n') + '\n'], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'sms-results.csv';
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     } else if (act === 'dl-pending'){
       downloadList('not-sent-numbers.txt', state.pendingNumbers);
     }
