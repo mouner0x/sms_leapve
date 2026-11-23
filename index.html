@@ -515,7 +515,7 @@
         </div>
         <button type="button" class="balance-checker-btn" id="checkBalanceBtn">Check balance</button>
       </div>
-      <span class="env-pill"><span class="env-dot"></span> Endpoint: <span id="envEndpointHost">bulk.whysms.com</span></span>
+      <span class="env-pill"><span class="env-dot"></span> Endpoint: <span id="envEndpointHost">sms.leapve.com</span></span>
     </div>
   </header>
 
@@ -531,7 +531,7 @@
             <div class="step-badge">1</div>
             <div>
               <div class="card-title">API Token</div>
-              <div class="card-desc">Your WhySMS API token</div>
+              <div class="card-desc">Your LEAPVE SMS token</div>
             </div>
           </div>
           <span class="card-tag">Required</span>
@@ -548,7 +548,7 @@
           </div>
           <div class="field-hint">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            Hidden by default. Sent only to WhySMS over HTTPS — never stored or logged.
+            Hidden by default. Sent only to LEAPVE SMS over HTTPS — never stored or logged.
           </div>
           <div class="field-error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> API token is required to send messages.</div>
         </div>
@@ -685,7 +685,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 0 20 15.3 15.3 0 0 1 0-20z"/></svg>
               API endpoint
             </span>
-            <span class="config-val config-val-url" id="configApiEndpoint">https://bulk.whysms.com/api/v3/sms/send</span>
+            <span class="config-val config-val-url" id="configApiEndpoint">https://sms.leapve.com/api/v3/sms/send</span>
           </div>
           <div class="config-row">
             <span class="config-key">
@@ -788,7 +788,7 @@
     </aside>
   </div>
 
-  <p class="footnote">LEAPVE SMS · messages are sent through the WhySMS API in batches of 50, confirmed against WhySMS reports</p>
+  <p class="footnote">LEAPVE SMS · messages are sent through LEAPVE SMS in batches of 50, confirmed against LEAPVE SMS reports</p>
 </div>
 
 <!-- ============ Confirmation Modal ============ -->
@@ -798,7 +798,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </div>
     <h2>Confirm send</h2>
-    <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages through WhySMS.</p>
+    <p class="modal-sub" id="modalSub">Double-check the details below — this will send real messages through LEAPVE SMS.</p>
     <div class="modal-summary">
       <div class="modal-row"><span class="k">Recipients</span><span class="v" id="confRecipients">0</span></div>
       <div class="modal-row"><span class="k">Batches</span><span class="v" id="confBatches">0</span></div>
@@ -951,8 +951,8 @@
       '<button type="button" class="toast-close" aria-label="Dismiss">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
       '</button><div class="toast-bar" style="animation-duration:' + duration + 'ms"></div>';
-    t.querySelector('.toast-title').textContent = title;
-    t.querySelector('.toast-msg').textContent = msg || '';
+    t.querySelector('.toast-title').textContent = brand(title);
+    t.querySelector('.toast-msg').textContent = brand(msg || '');
     el.toastRegion.appendChild(t);
     var timer = setTimeout(function(){ dismiss(); }, duration);
     t.querySelector('.toast-close').addEventListener('click', function(){ clearTimeout(timer); dismiss(); });
@@ -960,6 +960,14 @@
       t.classList.add('leaving');
       setTimeout(function(){ t.remove(); }, 190);
     }
+  }
+
+  // Hides the provider name/host in anything shown on screen (incl. error texts returned by the API)
+  function brand(s){
+    return String(s == null ? '' : s)
+      .replace(/https?:\/\/bulk\.whysms\.com/gi, 'https://sms.leapve.com')
+      .replace(/bulk\.whysms\.com/gi, 'sms.leapve.com')
+      .replace(/why\s*-?\s*sms/gi, 'LEAPVE SMS');
   }
 
   function escapeHtml(s){
@@ -1463,8 +1471,8 @@
     state.demoMode = el.demoToggle.checked;
     el.demoBadge.classList.toggle('on', state.demoMode);
     el.modalSub.textContent = state.demoMode
-      ? 'Demo mode is on — this will simulate a send and will NOT contact WhySMS.'
-      : 'Double-check the details below — this will send real messages through WhySMS.';
+      ? 'Demo mode is on — this will simulate a send and will NOT contact LEAPVE SMS.'
+      : 'Double-check the details below — this will send real messages through LEAPVE SMS.';
     if (state.demoMode) toast('warning', 'Demo mode enabled', 'Sends will be simulated — no real messages will go out.');
   });
 
@@ -1544,7 +1552,7 @@
         if (AUTH_ERROR_RE.test(msg) || r.status === 401) return { ok: false, message: 'Invalid API token.' };
         return { ok: false, message: 'Unable to retrieve the current SMS balance.' };
       }, function(){
-        return { ok: false, message: 'Could not reach WhySMS. Check your connection.' };
+        return { ok: false, message: 'Could not reach LEAPVE SMS. Check your connection.' };
       });
   }
 
@@ -1576,7 +1584,7 @@
         el.topBalanceStatus.className = 'balance-checker-status success';
         toast('success', 'Balance updated', 'Current SMS balance: ' + b.value);
       } else {
-        el.topBalanceStatus.textContent = b.message;
+        el.topBalanceStatus.textContent = brand(b.message);
         el.topBalanceStatus.className = 'balance-checker-status error';
         toast('error', 'Balance check failed', b.message);
       }
@@ -1608,10 +1616,10 @@
       headers: authHeaders(el.apiToken.value.trim(), true),
       body: JSON.stringify(payload)
     }, REQUEST_TIMEOUT_MS).then(function(r){
-      if (window.console) console.log('[LEAPVE] WhySMS reply', r.status, r.raw);
+      if (window.console) console.log('[LEAPVE] gateway reply', r.status, r.raw);
       var j = r.json;
       var st = (j && typeof j.status === 'string') ? j.status.trim().toLowerCase() : null;
-      var msg = j && j.message ? (typeof j.message === 'string' ? j.message : JSON.stringify(j.message)) : null;
+      var msg = j && j.message ? brand(typeof j.message === 'string' ? j.message : JSON.stringify(j.message)) : null;
 
       if (st === 'success') return { kind: 'sent' };
 
@@ -1622,7 +1630,7 @@
         }
         if (RATE_LIMIT_RE.test(msg) || r.status === 429){
           if (attempt < 4) return sleep(3000 * attempt).then(function(){ return sendBatch(numbers, attempt + 1); });
-          return { kind: 'notSent', stop: true, message: 'WhySMS is limiting requests right now. Wait a minute, then send the remaining.' };
+          return { kind: 'notSent', stop: true, message: 'LEAPVE SMS is limiting requests right now. Wait a minute, then send the remaining.' };
         }
         var stop = STOP_ERROR_RE.test(msg);
         return { kind: 'failed', message: msg, stop: stop, maybeSent: !stop && r.status !== 422 };
@@ -1631,11 +1639,11 @@
       // Anything else (no status field, HTML, 5xx/504) is NOT proof of success or failure:
       // the server may have sent the SMS and then timed out. The reports decide.
       return { kind: 'unknown', message: r.ok
-        ? 'WhySMS answered without a readable confirmation.'
-        : 'WhySMS server error (HTTP ' + r.status + ').' };
+        ? 'LEAPVE SMS answered without a readable confirmation.'
+        : 'LEAPVE SMS server error (HTTP ' + r.status + ').' };
     }, function(err){
       return { kind: 'unknown', message: (err && err.name === 'AbortError')
-        ? 'No reply from WhySMS after ' + (REQUEST_TIMEOUT_MS / 1000) + 's.'
+        ? 'No reply from LEAPVE SMS after ' + (REQUEST_TIMEOUT_MS / 1000) + 's.'
         : 'The reply could not be read (network problem).' };
     });
   }
@@ -1797,7 +1805,7 @@
       if (!attempted.length || attempted.length > VERIFY_MAX_NUMBERS){ finishSend(res); return; }
       reconcile(attempted, res.startedAt, function(pass){
         showProgress(done, batches.length, res, numbers.length,
-          'Confirming every number in the WhySMS reports… (pass ' + pass + ' of ' + VERIFY_PASSES + ')');
+          'Confirming every number in LEAPVE SMS reports… (pass ' + pass + ' of ' + VERIFY_PASSES + ')');
       }).then(function(v){
         var replySent = toSet(res.sent);
         var sent = [], failed = [], unknown = [], moved = 0;
@@ -1819,7 +1827,7 @@
         res.sent = sent; res.failed = failed; res.unknown = unknown;
         res.verifiedInReports = moved;
         res.reportsOk = v.ok;
-        if (failed.length && !res.errors.length) res.errors.push('Not found in WhySMS reports / marked failed');
+        if (failed.length && !res.errors.length) res.errors.push('Not found in LEAPVE SMS reports / marked failed');
         finishSend(res);
       });
     }
@@ -1838,10 +1846,10 @@
     // Per-number result sheet: ✓ sent / ✗ not sent / ? unconfirmed / – not attempted
     var rowsOut = ['number,result,detail'];
     res.sent.forEach(function(n){ rowsOut.push(n + ',✓ SENT,'); });
-    res.failed.forEach(function(n){ rowsOut.push(n + ',✗ NOT SENT,' + String((res.reportStatus && res.reportStatus[n]) || 'not in WhySMS reports').replace(/,/g, ' ')); });
+    res.failed.forEach(function(n){ rowsOut.push(n + ',✗ NOT SENT,' + String((res.reportStatus && res.reportStatus[n]) || 'not in LEAPVE SMS reports').replace(/,/g, ' ')); });
     res.unknown.forEach(function(n){ rowsOut.push(n + ',? UNCONFIRMED,reports could not be read'); });
     res.pending.forEach(function(n){ rowsOut.push(n + ',– NOT ATTEMPTED,' + String(res.stoppedReason || '').replace(/,/g, ' ')); });
-    state.resultCsv = rowsOut;
+    state.resultCsv = rowsOut.map(brand);
 
     var sent = res.sent.length;
     var unique = function(list){ return list.filter(function(m, i, a){ return m && a.indexOf(m) === i; }).slice(0, 3); };
@@ -1860,12 +1868,12 @@
       kind = 'error'; icon = ICONS.error;
       title = sent ? 'Partly sent — some numbers failed' : 'Unable to send SMS';
       var errs = unique(res.errors);
-      lines.push(errs.length ? 'Reason: ' + errs.map(escapeHtml).join(' · ') : 'WhySMS rejected the request.');
+      lines.push(errs.length ? 'Reason: ' + errs.map(escapeHtml).join(' · ') : 'LEAPVE SMS rejected the request.');
       toast('error', title, errs[0] || 'Check the details and try again.');
     } else if (res.unknown.length){
       kind = 'warning'; icon = ICONS.warning;
       title = sent ? 'Sent — some replies not confirmed' : 'Probably sent — reply not confirmed';
-      toast('warning', 'Status not confirmed', 'Check the WhySMS report before resending.');
+      toast('warning', 'Status not confirmed', 'Check LEAPVE SMS report before resending.');
     } else {
       kind = 'success'; icon = ICONS.success;
       title = 'Sent successfully';
@@ -1878,12 +1886,12 @@
     }
     if (res.unknown.length){
       lines.push(plural(res.unknown.length, 'number') + ' got no confirmation (' + escapeHtml(unique(res.unknownReasons)[0] || 'timeout') + '). ' +
-        'They most likely went out. <b>Don’t resend them</b> until you check the delivery report in WhySMS.');
+        'They most likely went out. <b>Don’t resend them</b> until you check the delivery report in LEAPVE SMS.');
     }
     if (res.verifiedInReports){
-      lines.push(plural(res.verifiedInReports, 'number') + ' got an error/no reply from the API but WERE sent (confirmed in WhySMS reports).');
+      lines.push(plural(res.verifiedInReports, 'number') + ' got an error/no reply from the API but WERE sent (confirmed in LEAPVE SMS reports).');
     }
-    if (res.reportsOk) lines.push('✓/✗ results below are confirmed against the WhySMS reports.');
+    if (res.reportsOk) lines.push('✓/✗ results below are confirmed against LEAPVE SMS reports.');
 
     var buttons = '<button type="button" class="retry-btn" data-act="dl-results">Download ✓/✗ per number</button> ';
     if (res.pending.length) buttons += '<button type="button" class="retry-btn" data-act="send-remaining">Send the remaining ' + res.pending.length.toLocaleString() + '</button> ';
@@ -1894,7 +1902,7 @@
 
     el.resultBanner.className = 'result-banner show ' + kind;
     el.resultBanner.innerHTML = icon + '<div class="rb-body"><b class="title">' + title + '</b>' +
-      lines.join('<br>') + stats + (buttons ? '<div>' + buttons + '</div>' : '') + '</div>';
+      brand(lines.join('<br>')) + stats + (buttons ? '<div>' + buttons + '</div>' : '') + '</div>';
 
     // refresh the balance after sending
     var token = el.apiToken.value.trim();
@@ -1961,10 +1969,10 @@
   }
 
   /* ================= Init ================= */
-  el.configApiEndpoint.textContent = SEND_ENDPOINT;
+  var DISPLAY_ENDPOINT = "https://sms.leapve.com/api/v3/sms/send"; // shown on screen only; real requests use SEND_ENDPOINT
+  el.configApiEndpoint.textContent = DISPLAY_ENDPOINT;
   el.configBatchSize.textContent = BATCH_SIZE.toLocaleString() + ' per request';
-  try { el.envEndpointHost.textContent = new URL(SEND_ENDPOINT).host; }
-  catch (e) { el.envEndpointHost.textContent = SEND_ENDPOINT; }
+  el.envEndpointHost.textContent = "sms.leapve.com";
   renderMessageStats();
   renderSummary();
   recomputeRecipients();
