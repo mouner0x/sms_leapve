@@ -575,7 +575,7 @@
           <textarea class="input mono" id="manualNumbers" placeholder="201023017409,201112345678,201098765432"></textarea>
           <div class="field-hint">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            Separate with commas or new lines. Any format works: 010…, 2010…, +20…, or Arabic digits.
+            Separate with commas or new lines. Egyptian mobiles only (010 / 011 / 012 / 015). Any format works: 010…, 2010…, +20…, or Arabic digits — all are sent as 20…
           </div>
         </div>
 
@@ -1013,7 +1013,7 @@
       if (n.length === 13 && n.indexOf('2001') === 0) n = '20' + n.slice(3); // "+20 010..." typo
       return n.length === 12 && isEgyMobilePrefix(n, 2) ? n : null;
     }
-    return n.length >= 8 && n.length <= 15 ? n : null;
+    return null; // Egyptian mobiles only: 2010 / 2011 / 2012 / 2015 + 8 digits
   }
 
   function parseManualEntries(text){
